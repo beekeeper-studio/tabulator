@@ -3,7 +3,7 @@
   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
   typeof define === 'function' && define.amd ? define(factory) :
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Tabulator = factory());
-}(this, (function () { 'use strict';
+})(this, (function () { 'use strict';
 
   function _typeof(obj) {
     "@babel/helpers - typeof";
@@ -80,7 +80,7 @@
     if (typeof Proxy === "function") return true;
 
     try {
-      Date.prototype.toString.call(Reflect.construct(Date, [], function () {}));
+      Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {}));
       return true;
     } catch (e) {
       return false;
@@ -98,6 +98,8 @@
   function _possibleConstructorReturn(self, call) {
     if (call && (typeof call === "object" || typeof call === "function")) {
       return call;
+    } else if (call !== void 0) {
+      throw new TypeError("Derived constructors may only return object or undefined");
     }
 
     return _assertThisInitialized(self);
@@ -131,7 +133,7 @@
   }
 
   function _iterableToArray(iter) {
-    if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter)) return Array.from(iter);
+    if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter);
   }
 
   function _unsupportedIterableToArray(o, minLen) {
@@ -156,9 +158,9 @@
   }
 
   function _createForOfIteratorHelper(o, allowArrayLike) {
-    var it;
+    var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"];
 
-    if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) {
+    if (!it) {
       if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") {
         if (it) o = it;
         var i = 0;
@@ -191,7 +193,7 @@
         err;
     return {
       s: function () {
-        it = o[Symbol.iterator]();
+        it = it.call(o);
       },
       n: function () {
         var step = it.next();
@@ -226,9 +228,7 @@
     maxHeight: false,
     //maximum height of tabulator
     columnMaxWidth: false,
-    //maximum global width for a column
-    columnMaxInitialWidth: false,
-    // maximum initial width for a column on first render
+    //minimum global width for a column
     columnHeaderVertAlign: "top",
     //vertical alignment of column headers
     columns: [],
@@ -628,6 +628,7 @@
     "width": undefined,
     "minWidth": 40,
     "maxWidth": undefined,
+    "maxInitialWidth": undefined,
     "tooltip": undefined,
     "cssClass": undefined,
     "variableHeight": undefined,
@@ -1143,6 +1144,7 @@
 
       _this.maxWidthStyled = ""; //column maximum prestyled to improve render efficiency
 
+      _this.maxInitialWidth = null;
       _this.minWidth = null; //column minimum width
 
       _this.minWidthStyled = ""; //column minimum prestyled to improve render efficiency
@@ -1259,7 +1261,7 @@
 
         var def = this.definition; //set header tooltips
 
-        var tooltip = typeof def.headerTooltip === "undefined" ? def.tooltip : def.headerTooltip;
+        var tooltip = def.headerTooltip;
 
         if (tooltip) {
           if (tooltip === true) {
@@ -1408,8 +1410,8 @@
       value: function _buildColumnHeader() {
         var _this6 = this;
 
-        var def = this.definition,
-            table = this.table;
+        var def = this.definition;
+            this.table;
         this.dispatch("column-layout", this); //set column visibility
 
         if (typeof def.visible != "undefined") {
@@ -1435,6 +1437,10 @@
 
         this.setMinWidth(parseInt(def.minWidth));
 
+        if (def.maxInitialWidth || this.table.options.columnMaxInitialWidth) {
+          this.maxInitialWidth = typeof def.maxInitialWidth == 'undefined' ? parseInt(this.table.options.columnMaxInitialWidth) : parseInt(def.maxInitialWidth);
+        }
+
         if (def.maxWidth) {
           this.setMaxWidth(parseInt(def.maxWidth));
         }
@@ -1450,8 +1456,8 @@
     }, {
       key: "_buildColumnHeaderContent",
       value: function _buildColumnHeaderContent() {
-        var def = this.definition,
-            table = this.table;
+        this.definition;
+            this.table;
         var contentElement = document.createElement("div");
         contentElement.classList.add("tabulator-col-content");
         this.titleHolderElement = document.createElement("div");
@@ -2051,17 +2057,18 @@
         this.widthFixed = false; //set width if present
 
         if (typeof this.definition.width !== "undefined" && !force) {
+          // maxInitialWidth ignored here as width specified
           this.setWidth(this.definition.width);
         }
 
         this.dispatch("column-width-fit-before", this);
-        this.fitToData();
+        this.fitToData(force);
         this.dispatch("column-width-fit-after", this);
       } //set column width to maximum cell width for non group columns
 
     }, {
       key: "fitToData",
-      value: function fitToData() {
+      value: function fitToData(force) {
         if (this.isGroup) {
           return;
         }
@@ -2085,7 +2092,13 @@
           });
 
           if (maxWidth) {
-            this.setWidthActual(maxWidth + 1);
+            var setTo = maxWidth + 1;
+
+            if (this.maxInitialWidth && !force) {
+              setTo = Math.min(setTo, this.maxInitialWidth);
+            }
+
+            self.setWidthActual(setTo);
           }
         }
       }
@@ -2143,6 +2156,7 @@
   }(CoreFeature);
 
   Column$1.defaultOptionList = defaultColumnOptions;
+  var Column$2 = Column$1;
 
   var Helpers = /*#__PURE__*/function () {
     function Helpers() {
@@ -3197,7 +3211,7 @@
     }, {
       key: "_addColumn",
       value: function _addColumn(definition, before, nextToColumn) {
-        var column = new Column$1(definition, this),
+        var column = new Column$2(definition, this),
             colEl = column.getElement(),
             index = nextToColumn ? this.findColumnIndex(nextToColumn) : nextToColumn;
 
@@ -3272,7 +3286,7 @@
       key: "findColumn",
       value: function findColumn(subject) {
         if (_typeof(subject) == "object") {
-          if (subject instanceof Column$1) {
+          if (subject instanceof Column$2) {
             //subject is column element
             return subject;
           } else if (subject instanceof ColumnComponent) {
@@ -3319,8 +3333,8 @@
         return this.columnsByIndex[index];
       }
     }, {
-      key: "getFirstVisibileColumn",
-      value: function getFirstVisibileColumn(index) {
+      key: "getFirstVisibleColumn",
+      value: function getFirstVisibleColumn(index) {
         var index = this.columnsByIndex.findIndex(function (col) {
           return col.visible;
         });
@@ -4144,7 +4158,7 @@
     }, {
       key: "deleteActual",
       value: function deleteActual(blockRedraw) {
-        var index = this.table.rowManager.getRowIndex(this);
+        this.table.rowManager.getRowIndex(this);
         this.detatchModules();
         this.table.rowManager.deleteRow(this, blockRedraw);
         this.deleteCells();
@@ -5822,7 +5836,7 @@
     }, {
       key: "_clearTable",
       value: function _clearTable() {
-        var element = this.tableElement;
+        this.tableElement;
 
         this._clearPlaceholder();
 
@@ -6471,7 +6485,7 @@
           } //get params for request
 
 
-          var params = this.chain("data-params", [data, config, silent], params || {}, {});
+          params = this.chain("data-params", [data, config, silent], params || {}, params || {});
           params = this.mapParams(params, this.table.options.dataSendParams);
           var result = this.chain("data-load", [data, params, config, silent], Promise.resolve([]));
           return result.then(function (response) {
@@ -6857,7 +6871,7 @@
 
         if (this.events[key]) {
           this.events[key].forEach(function (subscriber) {
-            var callResult = subscriber.callback.apply(_this3, args);
+            subscriber.callback.apply(_this3, args);
           });
         }
       }
@@ -6949,7 +6963,7 @@
               }
             }
           }
-        } else if (typeof HTMLElement !== "undefined" && query instanceof HTMLElement || query instanceof Tabulator) {
+        } else if (typeof HTMLElement !== "undefined" && query instanceof HTMLElement || query instanceof Tabulator$1) {
           match = TableRegistry.matchElement(query);
 
           if (match) {
@@ -6971,7 +6985,7 @@
       key: "matchElement",
       value: function matchElement(element) {
         return TableRegistry.tables.find(function (table) {
-          return element instanceof Tabulator ? table === element : table.element === element;
+          return element instanceof Tabulator$1 ? table === element : table.element === element;
         });
       }
     }]);
@@ -6980,6 +6994,7 @@
   }();
 
   TableRegistry.tables = [];
+  var TableRegistry$1 = TableRegistry;
 
   var Module = /*#__PURE__*/function (_CoreFeature) {
     _inherits(Module, _CoreFeature);
@@ -7060,6 +7075,8 @@
 
     return Module;
   }(CoreFeature);
+
+  var Module$1 = Module;
 
   //resize columns to fit data they contain
   function fitData (columns) {
@@ -7354,11 +7371,12 @@
     }]);
 
     return Layout;
-  }(Module);
+  }(Module$1);
 
   Layout.moduleName = "layout"; //load defaults
 
   Layout.modes = defaultModes;
+  var Layout$1 = Layout;
 
   var defaultLangs = {
     "default": {
@@ -7602,11 +7620,12 @@
     }]);
 
     return Localize;
-  }(Module);
+  }(Module$1);
 
   Localize.moduleName = "localize"; //load defaults
 
   Localize.langs = defaultLangs;
+  var Localize$1 = Localize;
 
   var Comms = /*#__PURE__*/function (_Module) {
     _inherits(Comms, _Module);
@@ -7631,7 +7650,7 @@
 
         var connections = [],
             connection;
-        connection = TableRegistry.lookupTable(selectors);
+        connection = TableRegistry$1.lookupTable(selectors);
         connection.forEach(function (con) {
           if (_this.table !== con) {
             connections.push(con);
@@ -7665,15 +7684,16 @@
     }]);
 
     return Comms;
-  }(Module);
+  }(Module$1);
 
   Comms.moduleName = "comms";
+  var Comms$1 = Comms;
 
   var coreModules = /*#__PURE__*/Object.freeze({
     __proto__: null,
-    LayoutModule: Layout,
-    LocalizeModule: Localize,
-    CommsModule: Comms
+    LayoutModule: Layout$1,
+    LocalizeModule: Localize$1,
+    CommsModule: Comms$1
   });
 
   var ModuleBinder = /*#__PURE__*/function () {
@@ -7728,7 +7748,7 @@
         };
 
         tabulator.findTable = function (query) {
-          var results = TableRegistry.lookupTable(query, true);
+          var results = TableRegistry$1.lookupTable(query, true);
           return Array.isArray(results) && !results.length ? false : results;
         }; //ensure that module are bound to instantiated function
 
@@ -7818,7 +7838,7 @@
         });
       }
 
-      TableRegistry.register(this); //register table for inter-device communication
+      TableRegistry$1.register(this); //register table for inter-device communication
     }
 
     _createClass(Tabulator, [{
@@ -8049,7 +8069,7 @@
       key: "destroy",
       value: function destroy() {
         var element = this.element;
-        TableRegistry.deregister(this); //deregister table from inter-device communication
+        TableRegistry$1.deregister(this); //deregister table from inter-device communication
 
         this.eventBus.dispatch("table-destroy"); //clear row data
 
@@ -8643,8 +8663,8 @@
       value: function dispatchEvent() {
         var _this$externalEvents;
 
-        var args = Array.from(arguments),
-            key = args.shift();
+        var args = Array.from(arguments);
+            args.shift();
 
         (_this$externalEvents = this.externalEvents).dispatch.apply(_this$externalEvents, arguments);
       } ////////////// Extension Management //////////////
@@ -8682,6 +8702,7 @@
   Tabulator.defaultOptions = defaultOptions; //bind modules and static functionality
 
   new ModuleBinder(Tabulator);
+  var Tabulator$1 = Tabulator;
 
   var defautlAccessors = {};
 
@@ -8812,27 +8833,28 @@
     }]);
 
     return Accessor;
-  }(Module); //load defaults
+  }(Module$1); //load defaults
 
 
   Accessor.moduleName = "accessor";
   Accessor.accessors = defautlAccessors;
+  var Accessor$1 = Accessor;
 
   var defaultConfig = {
     method: "GET"
   };
 
-  function generateParamsList(data, prefix) {
+  function generateParamsList$1(data, prefix) {
     var output = [];
     prefix = prefix || "";
 
     if (Array.isArray(data)) {
       data.forEach(function (item, i) {
-        output = output.concat(generateParamsList(item, prefix ? prefix + "[" + i + "]" : i));
+        output = output.concat(generateParamsList$1(item, prefix ? prefix + "[" + i + "]" : i));
       });
     } else if (_typeof(data) === "object") {
       for (var key in data) {
-        output = output.concat(generateParamsList(data[key], prefix ? prefix + "[" + key + "]" : key));
+        output = output.concat(generateParamsList$1(data[key], prefix ? prefix + "[" + key + "]" : key));
       }
     } else {
       output.push({
@@ -8845,7 +8867,7 @@
   }
 
   function serializeParams(params) {
-    var output = generateParamsList(params),
+    var output = generateParamsList$1(params),
         encoded = [];
     output.forEach(function (item) {
       encoded.push(encodeURIComponent(item.key) + "=" + encodeURIComponent(item.value));
@@ -8950,17 +8972,17 @@
     });
   }
 
-  function generateParamsList$1(data, prefix) {
+  function generateParamsList(data, prefix) {
     var output = [];
     prefix = prefix || "";
 
     if (Array.isArray(data)) {
       data.forEach(function (item, i) {
-        output = output.concat(generateParamsList$1(item, prefix ? prefix + "[" + i + "]" : i));
+        output = output.concat(generateParamsList(item, prefix ? prefix + "[" + i + "]" : i));
       });
     } else if (_typeof(data) === "object") {
       for (var key in data) {
-        output = output.concat(generateParamsList$1(data[key], prefix ? prefix + "[" + key + "]" : key));
+        output = output.concat(generateParamsList(data[key], prefix ? prefix + "[" + key + "]" : key));
       }
     } else {
       output.push({
@@ -8984,7 +9006,7 @@
     "form": {
       headers: {},
       body: function body(url, config, params) {
-        var output = generateParamsList$1(params),
+        var output = generateParamsList(params),
             form = new FormData();
         output.forEach(function (item) {
           form.append(item.key, item.value);
@@ -9170,7 +9192,7 @@
     }]);
 
     return Ajax;
-  }(Module);
+  }(Module$1);
 
   Ajax.moduleName = "ajax"; //load defaults
 
@@ -9178,6 +9200,7 @@
   Ajax.defaultURLGenerator = defaultURLGenerator;
   Ajax.defaultLoaderPromise = defaultLoaderPromise;
   Ajax.contentTypeFormatters = defaultContentTypeFormatters;
+  var Ajax$1 = Ajax;
 
   var defaultPasteActions = {
     replace: function replace(rows) {
@@ -9558,12 +9581,13 @@
     }]);
 
     return Clipboard;
-  }(Module);
+  }(Module$1);
 
   Clipboard.moduleName = "clipboard"; //load defaults
 
   Clipboard.pasteActions = defaultPasteActions;
   Clipboard.pasteParsers = defaultPasteParsers;
+  var Clipboard$1 = Clipboard;
 
   var CalcComponent = /*#__PURE__*/function () {
     function CalcComponent(row) {
@@ -9623,6 +9647,8 @@
 
     return CalcComponent;
   }();
+
+  var CalcComponent$1 = CalcComponent;
 
   var defaultCalculations = {
     "avg": function avg(values, data, calcParams) {
@@ -9754,7 +9780,7 @@
     }, {
       key: "initialize",
       value: function initialize() {
-        this.genColumn = new Column$1({
+        this.genColumn = new Column$2({
           field: "value"
         }, this);
         this.subscribe("cell-value-changed", this.cellValueChanged.bind(this));
@@ -10085,7 +10111,7 @@
 
         row.getComponent = function () {
           if (!row.component) {
-            row.component = new CalcComponent(row);
+            row.component = new CalcComponent$1(row);
           }
 
           return row.component;
@@ -10224,11 +10250,12 @@
     }]);
 
     return ColumnCalcs;
-  }(Module);
+  }(Module$1);
 
   ColumnCalcs.moduleName = "columnCalcs"; //load defaults
 
   ColumnCalcs.calculations = defaultCalculations;
+  var ColumnCalcs$1 = ColumnCalcs;
 
   var DataTree = /*#__PURE__*/function (_Module) {
     _inherits(DataTree, _Module);
@@ -10307,11 +10334,9 @@
       value: function initialize() {
         if (this.table.options.dataTree) {
           var dummyEl = null,
-              firstCol = this.table.columnManager.getFirstVisibileColumn(),
               options = this.table.options;
           this.field = options.dataTreeChildField;
           this.indent = options.dataTreeChildIndent;
-          this.elementField = options.dataTreeElementColumn || (firstCol ? firstCol.field : false);
 
           if (options.dataTreeBranchElement) {
             if (options.dataTreeBranchElement === true) {
@@ -10380,12 +10405,18 @@
 
           this.subscribe("row-init", this.initializeRow.bind(this));
           this.subscribe("row-layout-after", this.layoutRow.bind(this));
-          this.subscribe("row-relayout", this.layoutRow.bind(this));
           this.subscribe("row-deleted", this.rowDelete.bind(this), 0);
           this.subscribe("row-data-changed", this.rowDataChanged.bind(this), 10);
           this.subscribe("column-moving-rows", this.columnMoving.bind(this));
+          this.subscribe("table-built", this.initializeElementField.bind(this));
           this.registerDisplayHandler(this.getRows.bind(this), 30);
         }
+      }
+    }, {
+      key: "initializeElementField",
+      value: function initializeElementField() {
+        var firstCol = this.table.columnManager.getFirstVisibleColumn();
+        this.elementField = this.table.options.dataTreeElementColumn || (firstCol ? firstCol.field : false);
       }
     }, {
       key: "getRowChildren",
@@ -10846,9 +10877,10 @@
     }]);
 
     return DataTree;
-  }(Module);
+  }(Module$1);
 
   DataTree.moduleName = "dataTree";
+  var DataTree$1 = DataTree;
 
   function csv (list, options, setFileContents) {
     var delimiter = options && options.delimiter ? options.delimiter : ",",
@@ -11166,7 +11198,7 @@
     setFileContents(s2ab(output), "application/octet-stream");
   }
 
-  function html (list, options, setFileContents) {
+  function html$1 (list, options, setFileContents) {
     if (this.modExists("export", true)) {
       setFileContents(this.modules["export"].genereateHTMLTable(list), "text/html");
     }
@@ -11177,7 +11209,7 @@
     json: json,
     pdf: pdf,
     xlsx: xlsx,
-    html: html
+    html: html$1
   };
 
   var Download = /*#__PURE__*/function (_Module) {
@@ -11328,11 +11360,12 @@
     }]);
 
     return Download;
-  }(Module);
+  }(Module$1);
 
   Download.moduleName = "download"; //load defaults
 
   Download.downloaders = defaultDownloaders;
+  var Download$1 = Download;
 
   function maskInput(el, options) {
     var mask = options.mask,
@@ -11478,12 +11511,12 @@
     return input;
   }
 
-  function textarea (cell, onRendered, success, cancel, editorParams) {
+  function textarea$1 (cell, onRendered, success, cancel, editorParams) {
     var cellValue = cell.getValue(),
         vertNav = editorParams.verticalNavigation || "hybrid",
-        value = String(cellValue !== null && typeof cellValue !== "undefined" ? cellValue : ""),
-        count = (value.match(/(?:\r\n|\r|\n)/g) || []).length + 1,
-        input = document.createElement("textarea"),
+        value = String(cellValue !== null && typeof cellValue !== "undefined" ? cellValue : "");
+        (value.match(/(?:\r\n|\r|\n)/g) || []).length + 1;
+        var input = document.createElement("textarea"),
         scrollHeight = 0; //create and style input
 
     input.style.display = "block";
@@ -11581,7 +11614,7 @@
     return input;
   }
 
-  function number (cell, onRendered, success, cancel, editorParams) {
+  function number$1 (cell, onRendered, success, cancel, editorParams) {
     var cellValue = cell.getValue(),
         vertNav = editorParams.verticalNavigation || "editor",
         input = document.createElement("input");
@@ -12758,7 +12791,7 @@
   }
 
   //star rating
-  function star (cell, onRendered, success, cancel, editorParams) {
+  function star$1 (cell, onRendered, success, cancel, editorParams) {
     var self = this,
         element = cell.getElement(),
         value = cell.getValue(),
@@ -12892,7 +12925,7 @@
   }
 
   //draggable progress bar
-  function progress (cell, onRendered, success, cancel, editorParams) {
+  function progress$1 (cell, onRendered, success, cancel, editorParams) {
     var element = cell.getElement(),
         max = typeof editorParams.max === "undefined" ? element.getElementsByTagName("div")[0] && element.getElementsByTagName("div")[0].getAttribute("max") || 100 : editorParams.max,
         min = typeof editorParams.min === "undefined" ? element.getElementsByTagName("div")[0] && element.getElementsByTagName("div")[0].getAttribute("min") || 0 : editorParams.min,
@@ -13009,7 +13042,7 @@
   }
 
   //checkbox
-  function tickCross (cell, onRendered, success, cancel, editorParams) {
+  function tickCross$1 (cell, onRendered, success, cancel, editorParams) {
     var value = cell.getValue(),
         input = document.createElement("input"),
         tristate = editorParams.tristate,
@@ -13097,14 +13130,14 @@
 
   var defaultEditors = {
     input: input,
-    textarea: textarea,
-    number: number,
+    textarea: textarea$1,
+    number: number$1,
     range: range,
     select: select,
     autocomplete: autocomplete,
-    star: star,
-    progress: progress,
-    tickCross: tickCross
+    star: star$1,
+    progress: progress$1,
+    tickCross: tickCross$1
   };
 
   var Edit = /*#__PURE__*/function (_Module) {
@@ -13649,8 +13682,8 @@
         if (this.table.rowManager.getRenderMode() == "virtual") {
           var topEdge = this.table.rowManager.element.scrollTop,
               bottomEdge = this.table.rowManager.element.clientHeight + this.table.rowManager.element.scrollTop,
-              rowEl = cell.row.getElement(),
-              offset = rowEl.offsetTop;
+              rowEl = cell.row.getElement();
+              rowEl.offsetTop;
 
           if (rowEl.offsetTop < topEdge) {
             this.table.rowManager.element.scrollTop -= topEdge - rowEl.offsetTop;
@@ -13662,8 +13695,8 @@
 
           var leftEdge = this.table.rowManager.element.scrollLeft,
               rightEdge = this.table.rowManager.element.clientWidth + this.table.rowManager.element.scrollLeft,
-              cellEl = cell.getElement(),
-              offset = cellEl.offsetLeft;
+              cellEl = cell.getElement();
+              cellEl.offsetLeft;
 
           if (this.table.modExists("frozenColumns")) {
             leftEdge += parseInt(this.table.modules.frozenColumns.leftMargin);
@@ -13875,11 +13908,12 @@
     }]);
 
     return Edit;
-  }(Module);
+  }(Module$1);
 
   Edit.moduleName = "edit"; //load defaults
 
   Edit.editors = defaultEditors;
+  var Edit$1 = Edit;
 
   var ExportRow = function ExportRow(type, columns, component, indent) {
     _classCallCheck(this, ExportRow);
@@ -13890,6 +13924,8 @@
     this.indent = indent || 0;
   };
 
+  var ExportRow$1 = ExportRow;
+
   var ExportColumn = function ExportColumn(value, component, width, height, depth) {
     _classCallCheck(this, ExportColumn);
 
@@ -13899,6 +13935,8 @@
     this.height = height;
     this.depth = depth;
   };
+
+  var ExportColumn$1 = ExportColumn;
 
   var Export = /*#__PURE__*/function (_Module) {
     _inherits(Export, _Module);
@@ -14113,12 +14151,12 @@
           var columns = [];
           header.forEach(function (col) {
             if (col) {
-              columns.push(new ExportColumn(col.title, col.column.getComponent(), col.width, col.height, col.depth));
+              columns.push(new ExportColumn$1(col.title, col.column.getComponent(), col.width, col.height, col.depth));
             } else {
               columns.push(null);
             }
           });
-          exportRows.push(new ExportRow("header", columns));
+          exportRows.push(new ExportRow$1("header", columns));
         });
         return exportRows;
       }
@@ -14167,13 +14205,13 @@
           switch (row.type) {
             case "group":
               indent = row.level;
-              exportCols.push(new ExportColumn(row.key, row.getComponent(), columns.length, 1));
+              exportCols.push(new ExportColumn$1(row.key, row.getComponent(), columns.length, 1));
               break;
 
             case "calc":
             case "row":
               columns.forEach(function (col) {
-                exportCols.push(new ExportColumn(col._column.getFieldValue(rowData), col, 1, 1));
+                exportCols.push(new ExportColumn$1(col._column.getFieldValue(rowData), col, 1, 1));
               });
 
               if (_this5.table.options.dataTree && _this5.config.dataTree !== false) {
@@ -14183,7 +14221,7 @@
               break;
           }
 
-          exportRows.push(new ExportRow(row.type, exportCols, row.getComponent(), indent));
+          exportRows.push(new ExportRow$1(row.type, exportCols, row.getComponent(), indent));
         });
         return exportRows;
       }
@@ -14499,9 +14537,10 @@
     }]);
 
     return Export;
-  }(Module);
+  }(Module$1);
 
   Export.moduleName = "export";
+  var Export$1 = Export;
 
   var defaultFilters = {
     //equal to
@@ -14909,7 +14948,7 @@
                 value: value,
                 func: filterFunc,
                 type: type,
-                params:  {}
+                params: {}
               };
             } else {
               delete self.headerFilters[field];
@@ -15551,21 +15590,22 @@
     }]);
 
     return Filter;
-  }(Module);
+  }(Module$1);
 
   Filter.moduleName = "filter"; //load defaults
 
   Filter.filters = defaultFilters;
+  var Filter$1 = Filter;
 
   function plaintext (cell, formatterParams, onRendered) {
     return this.emptyToSpace(this.sanitizeHTML(cell.getValue()));
   }
 
-  function html$1 (cell, formatterParams, onRendered) {
+  function html (cell, formatterParams, onRendered) {
     return cell.getValue();
   }
 
-  function textarea$1 (cell, formatterParams, onRendered) {
+  function textarea (cell, formatterParams, onRendered) {
     cell.getElement().style.whiteSpace = "pre-wrap";
     return this.emptyToSpace(this.sanitizeHTML(cell.getValue()));
   }
@@ -15712,7 +15752,7 @@
     return el;
   }
 
-  function tickCross$1 (cell, formatterParams, onRendered) {
+  function tickCross (cell, formatterParams, onRendered) {
     var value = cell.getValue(),
         element = cell.getElement(),
         empty = formatterParams.allowEmpty,
@@ -15734,7 +15774,7 @@
     }
   }
 
-  function datetime (cell, formatterParams, onRendered) {
+  function datetime$1 (cell, formatterParams, onRendered) {
     var DT = window.DateTime || luxon.DateTime;
     var inputFormat = formatterParams.inputFormat || "yyyy-MM-dd HH:mm:ss";
     var outputFormat = formatterParams.outputFormat || "dd/MM/yyyy HH:mm:ss";
@@ -15806,7 +15846,7 @@
     return formatterParams[value];
   }
 
-  function star$1 (cell, formatterParams, onRendered) {
+  function star (cell, formatterParams, onRendered) {
     var value = cell.getValue(),
         element = cell.getElement(),
         maxStars = formatterParams && formatterParams.stars ? formatterParams.stars : 5,
@@ -15885,7 +15925,7 @@
     return el;
   }
 
-  function progress$1 (cell, formatterParams, onRendered) {
+  function progress (cell, formatterParams, onRendered) {
     //progress bar
     var value = this.sanitizeHTML(cell.getValue()) || 0,
         element = cell.getElement(),
@@ -16114,18 +16154,18 @@
 
   var defaultFormatters = {
     plaintext: plaintext,
-    html: html$1,
-    textarea: textarea$1,
+    html: html,
+    textarea: textarea,
     money: money,
     link: link,
     image: image,
-    tickCross: tickCross$1,
-    datetime: datetime,
+    tickCross: tickCross,
+    datetime: datetime$1,
     datetimediff: datetimediff,
     lookup: lookup,
-    star: star$1,
+    star: star,
     traffic: traffic,
-    progress: progress$1,
+    progress: progress,
     color: color,
     buttonTick: buttonTick,
     buttonCross: buttonCross,
@@ -16359,11 +16399,12 @@
     }]);
 
     return Format;
-  }(Module);
+  }(Module$1);
 
   Format.moduleName = "format"; //load defaults
 
   Format.formatters = defaultFormatters;
+  var Format$1 = Format;
 
   var FrozenColumns = /*#__PURE__*/function (_Module) {
     _inherits(FrozenColumns, _Module);
@@ -16671,9 +16712,10 @@
     }]);
 
     return FrozenColumns;
-  }(Module);
+  }(Module$1);
 
   FrozenColumns.moduleName = "frozenColumns";
+  var FrozenColumns$1 = FrozenColumns;
 
   var FrozenRows = /*#__PURE__*/function (_Module) {
     _inherits(FrozenRows, _Module);
@@ -16752,7 +16794,7 @@
     }, {
       key: "unfreezeRow",
       value: function unfreezeRow(row) {
-        var index = this.rows.indexOf(row);
+        this.rows.indexOf(row);
 
         if (row.modules.frozen) {
           row.modules.frozen = false;
@@ -16794,9 +16836,10 @@
     }]);
 
     return FrozenRows;
-  }(Module);
+  }(Module$1);
 
   FrozenRows.moduleName = "frozenRows";
+  var FrozenRows$1 = FrozenRows;
 
   //public group object
   var GroupComponent = /*#__PURE__*/function () {
@@ -16880,6 +16923,8 @@
 
     return GroupComponent;
   }();
+
+  var GroupComponent$1 = GroupComponent;
 
   var Group = /*#__PURE__*/function () {
     function Group(groupManager, parent, level, key, field, generator, oldGroup) {
@@ -17535,7 +17580,7 @@
       key: "getComponent",
       value: function getComponent() {
         if (!this.component) {
-          this.component = new GroupComponent(this);
+          this.component = new GroupComponent$1(this);
         }
 
         return this.component;
@@ -17544,6 +17589,8 @@
 
     return Group;
   }();
+
+  var Group$1 = Group;
 
   var GroupRows = /*#__PURE__*/function (_Module) {
     _inherits(GroupRows, _Module);
@@ -17865,12 +17912,12 @@
     }, {
       key: "rowMoving",
       value: function rowMoving(from, to, after) {
-        if (!after && to instanceof Group) {
+        if (!after && to instanceof Group$1) {
           to = this.table.rowManager.prevDisplayRow(from) || to;
         }
 
-        var toGroup = to instanceof Group ? to : to.modules.group;
-        var fromGroup = from instanceof Group ? from : from.modules.group;
+        var toGroup = to instanceof Group$1 ? to : to.modules.group;
+        var fromGroup = from instanceof Group$1 ? from : from.modules.group;
 
         if (toGroup === fromGroup) {
           this.table.rowManager.moveRowInArray(toGroup.rows, from, to, after);
@@ -18047,7 +18094,7 @@
         var groupKey = level + "_" + groupID,
             group;
         oldGroups = oldGroups || [];
-        group = new Group(this, false, level, groupID, this.groupIDLookups[0].field, this.headerGenerator[0], oldGroups[groupKey]);
+        group = new Group$1(this, false, level, groupID, this.groupIDLookups[0].field, this.headerGenerator[0], oldGroups[groupKey]);
         this.groups[groupKey] = group;
         this.groupList.push(group);
       }
@@ -18148,9 +18195,10 @@
     }]);
 
     return GroupRows;
-  }(Module);
+  }(Module$1);
 
   GroupRows.moduleName = "groupRows";
+  var GroupRows$1 = GroupRows;
 
   var defaultUndoers = {
     cellEdit: function cellEdit(action) {
@@ -18384,12 +18432,13 @@
     }]);
 
     return History;
-  }(Module);
+  }(Module$1);
 
   History.moduleName = "history"; //load defaults
 
   History.undoers = defaultUndoers;
   History.redoers = defaultRedoers;
+  var History$1 = History;
 
   var HtmlTableImport = /*#__PURE__*/function (_Module) {
     _inherits(HtmlTableImport, _Module);
@@ -18423,9 +18472,9 @@
       key: "parseTable",
       value: function parseTable() {
         var element = this.table.originalElement,
-            options = this.table.options,
-            columns = options.columns,
-            headers = element.getElementsByTagName("th"),
+            options = this.table.options;
+            options.columns;
+            var headers = element.getElementsByTagName("th"),
             rows = element.getElementsByTagName("tbody")[0],
             data = [];
         this.hasIndex = false;
@@ -18577,9 +18626,10 @@
     }]);
 
     return HtmlTableImport;
-  }(Module);
+  }(Module$1);
 
   HtmlTableImport.moduleName = "htmlTableImport";
+  var HtmlTableImport$1 = HtmlTableImport;
 
   var Interaction = /*#__PURE__*/function (_Module) {
     _inherits(Interaction, _Module);
@@ -18891,7 +18941,7 @@
         if (this.columnSubscribers[action]) {
           if (component instanceof Cell) {
             callback = component.column.definition[action];
-          } else if (component instanceof Column$1) {
+          } else if (component instanceof Column$2) {
             callback = component.definition[action];
           }
 
@@ -18905,9 +18955,10 @@
     }]);
 
     return Interaction;
-  }(Module);
+  }(Module$1);
 
   Interaction.moduleName = "interaction";
+  var Interaction$1 = Interaction;
 
   var defaultBindings = {
     navPrev: "shift + 9",
@@ -18930,8 +18981,8 @@
     },
     scrollPageUp: function scrollPageUp(e) {
       var rowManager = this.table.rowManager,
-          newPos = rowManager.scrollTop - rowManager.element.clientHeight,
-          scrollMax = rowManager.element.scrollHeight;
+          newPos = rowManager.scrollTop - rowManager.element.clientHeight;
+          rowManager.element.scrollHeight;
       e.preventDefault();
 
       if (rowManager.displayRowsCount) {
@@ -19218,12 +19269,13 @@
     }]);
 
     return Keybindings;
-  }(Module);
+  }(Module$1);
 
   Keybindings.moduleName = "keybindings"; //load defaults
 
   Keybindings.bindings = defaultBindings;
   Keybindings.actions = defaultActions;
+  var Keybindings$1 = Keybindings;
 
   var Menu = /*#__PURE__*/function (_Module) {
     _inherits(Menu, _Module);
@@ -19582,9 +19634,10 @@
     }]);
 
     return Menu;
-  }(Module);
+  }(Module$1);
 
   Menu.moduleName = "menu";
+  var Menu$1 = Menu;
 
   var MoveColumns = /*#__PURE__*/function (_Module) {
     _inherits(MoveColumns, _Module);
@@ -19909,9 +19962,10 @@
     }]);
 
     return MoveColumns;
-  }(Module);
+  }(Module$1);
 
   MoveColumns.moduleName = "moveColumn";
+  var MoveColumns$1 = MoveColumns;
 
   var MoveRows = /*#__PURE__*/function (_Module) {
     _inherits(MoveRows, _Module);
@@ -20518,7 +20572,7 @@
     }]);
 
     return MoveRows;
-  }(Module);
+  }(Module$1);
 
   MoveRows.prototype.receivers = {
     insert: function insert(fromRow, toRow, fromTable) {
@@ -20553,6 +20607,7 @@
     }
   };
   MoveRows.moduleName = "moveRow";
+  var MoveRows$1 = MoveRows;
 
   var defaultMutators = {};
 
@@ -20713,11 +20768,12 @@
     }]);
 
     return Mutator;
-  }(Module);
+  }(Module$1);
 
   Mutator.moduleName = "mutator"; //load defaults
 
   Mutator.mutators = defaultMutators;
+  var Mutator$1 = Mutator;
 
   var Page = /*#__PURE__*/function (_Module) {
     _inherits(Page, _Module);
@@ -21518,9 +21574,10 @@
     }]);
 
     return Page;
-  }(Module);
+  }(Module$1);
 
   Page.moduleName = "page";
+  var Page$1 = Page;
 
   // read peristence information from storage
   var defaultReaders = {
@@ -21733,8 +21790,8 @@
     }, {
       key: "tableBuilt",
       value: function tableBuilt() {
-        var options = this.table.options,
-            sorters,
+        this.table.options;
+            var sorters,
             filters;
 
         if (this.config.sort) {
@@ -22030,12 +22087,13 @@
     }]);
 
     return Persistence;
-  }(Module);
+  }(Module$1);
 
   Persistence.moduleName = "persistence"; //load defaults
 
   Persistence.readers = defaultReaders;
   Persistence.writers = defaultWriters;
+  var Persistence$1 = Persistence;
 
   var Print = /*#__PURE__*/function (_Module) {
     _inherits(Print, _Module);
@@ -22173,9 +22231,10 @@
     }]);
 
     return Print;
-  }(Module);
+  }(Module$1);
 
   Print.moduleName = "print";
+  var Print$1 = Print;
 
   var ReactiveData = /*#__PURE__*/function (_Module) {
     _inherits(ReactiveData, _Module);
@@ -22500,9 +22559,10 @@
     }]);
 
     return ReactiveData;
-  }(Module);
+  }(Module$1);
 
   ReactiveData.moduleName = "reactiveData";
+  var ReactiveData$1 = ReactiveData;
 
   var ResizeColumns = /*#__PURE__*/function (_Module) {
     _inherits(ResizeColumns, _Module);
@@ -22698,9 +22758,10 @@
     }]);
 
     return ResizeColumns;
-  }(Module);
+  }(Module$1);
 
   ResizeColumns.moduleName = "resizeColumns";
+  var ResizeColumns$1 = ResizeColumns;
 
   var ResizeRows = /*#__PURE__*/function (_Module) {
     _inherits(ResizeRows, _Module);
@@ -22817,9 +22878,10 @@
     }]);
 
     return ResizeRows;
-  }(Module);
+  }(Module$1);
 
   ResizeRows.moduleName = "resizeRows";
+  var ResizeRows$1 = ResizeRows;
 
   var ResizeTable = /*#__PURE__*/function (_Module) {
     _inherits(ResizeTable, _Module);
@@ -22946,9 +23008,10 @@
     }]);
 
     return ResizeTable;
-  }(Module);
+  }(Module$1);
 
   ResizeTable.moduleName = "resizeTable";
+  var ResizeTable$1 = ResizeTable;
 
   var ResponsiveLayout = /*#__PURE__*/function (_Module) {
     _inherits(ResponsiveLayout, _Module);
@@ -23318,9 +23381,10 @@
     }]);
 
     return ResponsiveLayout;
-  }(Module);
+  }(Module$1);
 
   ResponsiveLayout.moduleName = "responsiveLayout";
+  var ResponsiveLayout$1 = ResponsiveLayout;
 
   var SelectRow = /*#__PURE__*/function (_Module) {
     _inherits(SelectRow, _Module);
@@ -23812,12 +23876,13 @@
     }]);
 
     return SelectRow;
-  }(Module);
+  }(Module$1);
 
   SelectRow.moduleName = "selectRow";
+  var SelectRow$1 = SelectRow;
 
   //sort numbers
-  function number$1 (a, b, aRow, bRow, column, dir, params) {
+  function number (a, b, aRow, bRow, column, dir, params) {
     var alignEmptyValues = params.alignEmptyValues;
     var decimal = params.decimalSeparator;
     var thousand = params.thousandSeparator;
@@ -23892,7 +23957,7 @@
   }
 
   //sort datetime
-  function datetime$1 (a, b, aRow, bRow, column, dir, params) {
+  function datetime (a, b, aRow, bRow, column, dir, params) {
     var DT = window.DateTime || luxon.DateTime;
     var format = params.format || "dd/MM/yyyy HH:mm:ss",
         alignEmptyValues = params.alignEmptyValues,
@@ -23927,7 +23992,7 @@
       params.format = "dd/MM/yyyy";
     }
 
-    return datetime$1.call(this, a, b, aRow, bRow, column, dir, params);
+    return datetime.call(this, a, b, aRow, bRow, column, dir, params);
   }
 
   function time (a, b, aRow, bRow, column, dir, params) {
@@ -23935,7 +24000,7 @@
       params.format = "HH:mm";
     }
 
-    return datetime$1.call(this, a, b, aRow, bRow, column, dir, params);
+    return datetime.call(this, a, b, aRow, bRow, column, dir, params);
   }
 
   //sort booleans
@@ -24055,11 +24120,11 @@
   }
 
   var defaultSorters = {
-    number: number$1,
+    number: number,
     string: string,
     date: date,
     time: time,
-    datetime: datetime$1,
+    datetime: datetime,
     "boolean": _boolean,
     array: array,
     exists: exists,
@@ -24505,11 +24570,12 @@
     }]);
 
     return Sort;
-  }(Module);
+  }(Module$1);
 
   Sort.moduleName = "sort"; //load defaults
 
   Sort.sorters = defaultSorters;
+  var Sort$1 = Sort;
 
   var defaultValidators = {
     //is integer
@@ -24911,46 +24977,47 @@
     }]);
 
     return Validate;
-  }(Module);
+  }(Module$1);
 
   Validate.moduleName = "validate"; //load defaults
 
   Validate.validators = defaultValidators;
+  var Validate$1 = Validate;
 
   var modules = /*#__PURE__*/Object.freeze({
     __proto__: null,
-    AccessorModule: Accessor,
-    AjaxModule: Ajax,
-    ClipboardModule: Clipboard,
-    ColumnCalcsModule: ColumnCalcs,
-    DataTreeModule: DataTree,
-    DownloadModule: Download,
-    EditModule: Edit,
-    ExportModule: Export,
-    FilterModule: Filter,
-    FormatModule: Format,
-    FrozenColumnsModule: FrozenColumns,
-    FrozenRowsModule: FrozenRows,
-    GroupRowsModule: GroupRows,
-    HistoryModule: History,
-    HtmlTableImportModule: HtmlTableImport,
-    InteractionModule: Interaction,
-    KeybindingsModule: Keybindings,
-    MenuModule: Menu,
-    MoveColumnsModule: MoveColumns,
-    MoveRowsModule: MoveRows,
-    MutatorModule: Mutator,
-    PageModule: Page,
-    PersistenceModule: Persistence,
-    PrintModule: Print,
-    ReactiveDataModule: ReactiveData,
-    ResizeColumnsModule: ResizeColumns,
-    ResizeRowsModule: ResizeRows,
-    ResizeTableModule: ResizeTable,
-    ResponsiveLayoutModule: ResponsiveLayout,
-    SelectRowModule: SelectRow,
-    SortModule: Sort,
-    ValidateModule: Validate
+    AccessorModule: Accessor$1,
+    AjaxModule: Ajax$1,
+    ClipboardModule: Clipboard$1,
+    ColumnCalcsModule: ColumnCalcs$1,
+    DataTreeModule: DataTree$1,
+    DownloadModule: Download$1,
+    EditModule: Edit$1,
+    ExportModule: Export$1,
+    FilterModule: Filter$1,
+    FormatModule: Format$1,
+    FrozenColumnsModule: FrozenColumns$1,
+    FrozenRowsModule: FrozenRows$1,
+    GroupRowsModule: GroupRows$1,
+    HistoryModule: History$1,
+    HtmlTableImportModule: HtmlTableImport$1,
+    InteractionModule: Interaction$1,
+    KeybindingsModule: Keybindings$1,
+    MenuModule: Menu$1,
+    MoveColumnsModule: MoveColumns$1,
+    MoveRowsModule: MoveRows$1,
+    MutatorModule: Mutator$1,
+    PageModule: Page$1,
+    PersistenceModule: Persistence$1,
+    PrintModule: Print$1,
+    ReactiveDataModule: ReactiveData$1,
+    ResizeColumnsModule: ResizeColumns$1,
+    ResizeRowsModule: ResizeRows$1,
+    ResizeTableModule: ResizeTable$1,
+    ResponsiveLayoutModule: ResponsiveLayout$1,
+    SelectRowModule: SelectRow$1,
+    SortModule: Sort$1,
+    ValidateModule: Validate$1
   });
 
   var TabulatorFull = /*#__PURE__*/function (_Tabulator) {
@@ -24965,11 +25032,12 @@
     }
 
     return TabulatorFull;
-  }(Tabulator);
+  }(Tabulator$1);
 
   new ModuleBinder(TabulatorFull, modules);
+  var TabulatorFull$1 = TabulatorFull;
 
-  return TabulatorFull;
+  return TabulatorFull$1;
 
-})));
+}));
 //# sourceMappingURL=tabulator.js.map
