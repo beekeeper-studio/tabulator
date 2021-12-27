@@ -226,7 +226,9 @@
     maxHeight: false,
     //maximum height of tabulator
     columnMaxWidth: false,
-    //minimum global width for a column
+    //maximum global width for a column
+    columnMaxInitialWidth: false,
+    // maximum initial width for a column on first render
     columnHeaderVertAlign: "top",
     //vertical alignment of column headers
     columns: [],
