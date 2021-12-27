@@ -973,7 +973,7 @@ class Column extends CoreFeature{
         if (this.maxInitialWidth && !force) {
           setTo = Math.min(setTo, this.maxInitialWidth);
         }
-        self.setWidthActual(setTo);
+        this.setWidthActual(setTo);
 			}
 		}
 	}
