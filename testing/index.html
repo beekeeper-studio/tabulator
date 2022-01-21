@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"> 
+  <link rel="stylesheet" href="/dist/css/tabulator.css">
+  <!-- <script src="/dist/js/tabulator_esm.js"></script> -->
+  <title>Demo</title>
+  <style>
+    .tabulator-wrapper .tabulator-paginator button {
+      width: inherit;
+      color: black;
+    }
+  </style>
+	<script type="text/javascript" src="/testing/faker.min.js"></script>
+</head>
+
+<body>
+  <main class="container tabulator-wrapper">
+    <h1>Tabulator</h1>
+    <section style="max-height: 700px">
+      <div id="tabulator"></div>
+    </section>
+		<h2>Very Wide</h2>
+		<section style="height: 700px">
+			<div id="tabulator-horiz"></div>
+		</section>
+  </main>
+</body>
+
+
+<script src="tabledata.js"></script>
+
+<script type="module">
+	import { TabulatorFull as Tabulator } from '/dist/js/tabulator_esm.js'
+  var columns = Object.keys(tabledata[0]).map((k) => {
+    return {
+      title: k,
+      field: k,
+      editor: "input",
+    }
+  })
+
+
+
+	var columns = [];
+
+	var randomMutator = function () {
+		return Math.random();
+	}
+
+	function genFake(colNum) {
+		switch (colNum % 5) {
+			case 0:
+				return faker.name.findName()
+			case 1:
+				return faker.address.streetAddress(true)
+			case 2:
+				return faker.image.image()
+			case 3:
+				return faker.date.past()
+			default:
+				return faker.address.city()
+		}
+	}
+
+	for (let z = 1; z <= 100; z++) {
+		columns.push({ title: "Column " + z, field: "a" + z });
+	}
+
+	var fakeData = []
+	for (let index = 0; index < 1000; index++) {
+		fakeData[index] = {}
+		for (let colNum = 0; colNum <= 100; colNum++) {
+			const key = "a" + colNum
+			fakeData[index][key] = genFake(colNum)
+		}
+	}
+
+	//Simple Example
+	var example_table_virtual_hoz = new Tabulator("#tabulator-horiz", {
+		height: "311px",
+		data: fakeData,
+		renderHorizontal: "virtual",
+		columns: columns,
+		pagination: 'local',
+		paginationSize: 100
+	});
+
+
+
+  // var table = new Tabulator("#tabulator", {
+  //   height: "100%",
+  //   renderHorizontal: 'virtual',
+  //   data: tabledata,
+  //   columns: columns,
+  //   pagination: 'local',
+  //   paginationSize: 100,
+
+  // });
+
+
+</script>
+
+
+</html>

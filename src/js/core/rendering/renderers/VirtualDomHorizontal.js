@@ -357,6 +357,7 @@ export default class VirtualDomHorizontal extends Renderer{
 			});
 			
 			this.fitDataColActualWidthCheck(column);
+			this.leftCol--;
 			
 			if(!this.leftCol){
 				this.vDomPadLeft = 0;
@@ -366,7 +367,6 @@ export default class VirtualDomHorizontal extends Renderer{
 			
 			this.tableElement.style.paddingLeft = this.vDomPadLeft + "px";
 			
-			this.leftCol--;
 			
 			this.addColLeft();
 		}
