@@ -10,6 +10,8 @@
     "**/*.scss"
   ],
   "scripts": {
+		"web:dev": "npm-run-all --parallel web dev",
+		"web": "static -p 5678",
     "build": "rollup -c build/rollup.js",
     "dev": "rollup -c build/rollup.js -w --environment TARGET:dev",
     "dev:css": "rollup -c build/rollup.js -w --environment TARGET:css",
@@ -54,6 +56,8 @@
     "fs-extra": "^9.0.1",
     "globby": "^11.0.2",
     "node-sass": "^5.0.0",
+    "node-static": "^0.7.11",
+    "npm-run-all": "^4.1.5",
     "postcss": "^8.2.4",
     "postcss-prettify": "^0.3.4",
     "rollup": "^2.36.1",
