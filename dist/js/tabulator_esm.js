@@ -1,4 +1,4 @@
-/* Tabulator v5.1.3 (c) Oliver Folkerd 2022 */
+/* Tabulator v5.1.4 (c) Oliver Folkerd 2022 */
 class CoreFeature{
 
 	constructor(table){
@@ -2847,6 +2847,8 @@ class Row extends CoreFeature{
 
 			this.generateCells();
 
+			this.initialized = true;
+
 			this.table.columnManager.renderer.renderRowCells(this);
 
 			if(force){
@@ -2854,8 +2856,6 @@ class Row extends CoreFeature{
 			}
 
 			this.dispatch("row-layout", this);
-
-			this.initialized = true;
 
 			if(this.table.options.rowFormatter){
 				this.table.options.rowFormatter(this.getComponent());
@@ -7906,10 +7906,10 @@ class Export extends Module{
 		rowEl.classList.add("tabulator-print-table-row");
 
 		row.columns.forEach((col) => {
-
 			if(col){
 				var cellEl = document.createElement("td"),
 				column = col.component._column,
+				index = this.table.columnManager.findColumnIndex(column),
 				value = col.value;
 
 				var cellWrapper = {
@@ -7968,8 +7968,8 @@ class Export extends Module{
 					cellEl.innerHTML = value;
 				}
 
-				if(styles.firstCell){
-					this.mapElementStyles(styles.firstCell, cellEl, ["padding-top", "padding-left", "padding-right", "padding-bottom", "border-top", "border-left", "border-right", "border-bottom", "color", "font-weight", "font-family", "font-size"]);
+				if(styles.styleCells[index] || styles.firstCell){
+					this.mapElementStyles(styles.styleCells[index] || styles.firstCell, cellEl, ["padding-top", "padding-left", "padding-right", "padding-bottom", "border-top", "border-left", "border-right", "border-bottom", "color", "font-weight", "font-family", "font-size", "text-align"]);
 
 					if(column.definition.align){
 						cellEl.style.textAlign = column.definition.align;
@@ -8572,7 +8572,9 @@ class Filter extends Module{
 				editorElement.addEventListener("focus", (e) => {
 					var left = this.table.columnManager.element.scrollLeft;
 
-					if(left !== this.table.rowManager.element.scrollLeft){
+					var headerPos = this.table.rowManager.element.scrollLeft + parseInt(this.table.columnManager.element.style.marginLeft);
+
+					if(left !== headerPos){
 						this.table.rowManager.scrollHorizontal(left);
 						this.table.columnManager.scrollHorizontal(left);
 					}
@@ -9582,8 +9584,9 @@ function rowSelection(cell, formatterParams, onRendered){
 	var blocked = false;
 
 	checkbox.type = 'checkbox';
-	
 
+	checkbox.setAttribute("aria-label", "Select Row");
+	
 	if(this.table.modExists("selectRow", true)){
 
 		checkbox.addEventListener("click", (e) => {
@@ -9863,10 +9866,10 @@ Format.moduleName = "format";
 Format.formatters = defaultFormatters;
 
 class FrozenColumns extends Module{
-
+	
 	constructor(table){
 		super(table);
-
+		
 		this.leftColumns = [];
 		this.rightColumns = [];
 		this.leftMargin = 0;
@@ -9876,10 +9879,10 @@ class FrozenColumns extends Module{
 		this.active = false;
 		this.scrollEndTimer = false;
 		this.blocked = true;
-
+		
 		this.registerColumnOption("frozen");
 	}
-
+	
 	//reset initial state
 	reset(){
 		this.initializationMode = "left";
@@ -9889,11 +9892,11 @@ class FrozenColumns extends Module{
 		this.rightMargin = 0;
 		this.rightMargin = 0;
 		this.active = false;
-
+		
 		this.table.columnManager.headersElement.style.marginLeft = 0;
 		this.table.columnManager.element.style.paddingRight = 0;
 	}
-
+	
 	initialize(){
 		this.subscribe("cell-layout", this.layoutCell.bind(this));
 		this.subscribe("column-init", this.initializeColumn.bind(this));
@@ -9906,183 +9909,191 @@ class FrozenColumns extends Module{
 		this.subscribe("layout-refreshing", this.blockLayout.bind(this));
 		this.subscribe("layout-refreshed", this.unblockLayout.bind(this));
 	}
-
+	
 	blockLayout(){
 		this.blocked = true;
 	}
-
+	
 	unblockLayout(){
 		this.blocked = false;
 	}
-
+	
 	layoutCell(cell){
 		this.layoutElement(cell.element, cell.column);
 	}
-
+	
 	//initialize specific column
 	initializeColumn(column){
 		var config = {margin:0, edge:false};
-
+		
 		if(!column.isGroup){
-
+			
 			if(this.frozenCheck(column)){
-
+				
 				config.position = this.initializationMode;
-
+				
 				if(this.initializationMode == "left"){
 					this.leftColumns.push(column);
 				}else {
 					this.rightColumns.unshift(column);
 				}
-
+				
 				this.active = true;
-
+				
 				column.modules.frozen = config;
 			}else {
 				this.initializationMode = "right";
 			}
 		}
 	}
-
+	
 	frozenCheck(column){
-
+		
 		if(column.parent.isGroup && column.definition.frozen){
 			console.warn("Frozen Column Error - Parent column group must be frozen, not individual columns or sub column groups");
 		}
-
+		
 		if(column.parent.isGroup){
 			return this.frozenCheck(column.parent);
 		}else {
 			return column.definition.frozen;
 		}
 	}
-
+	
 	//quick layout to smooth horizontal scrolling
 	scrollHorizontal(){
 		var rows;
-
+		
 		if(this.active){
 			clearTimeout(this.scrollEndTimer);
 
-			//layout all rows after scroll is complete
-			this.scrollEndTimer = setTimeout(() => {
-				this.layout();
-			}, 100);
-
 			rows = this.table.rowManager.getVisibleRows();
-
-			this.calcMargins();
-
+			
+			this.calcMargins(true);
+			
 			this.layoutColumnPosition();
-
+			
 			this.layoutCalcRows();
-
+			
 			rows.forEach((row) => {
 				if(row.type === "row"){
 					this.layoutRow(row);
 				}
 			});
-
-			this.table.rowManager.tableElement.style.marginRight = this.rightMargin;
 		}
 	}
-
+	
 	//calculate margins for rows
-	calcMargins(){
-		this.leftMargin = this._calcSpace(this.leftColumns, this.leftColumns.length) + "px";
-		this.table.columnManager.headersElement.style.marginLeft = this.leftMargin;
-
-		this.rightMargin = this._calcSpace(this.rightColumns, this.rightColumns.length) + "px";
-		this.table.columnManager.element.style.paddingRight = this.rightMargin;
-
+	calcMargins(scroll){
+		
+		if(!scroll){
+			this.leftMargin = this._calcSpace(this.leftColumns, this.leftColumns.length) + "px";			
+			this.rightMargin = this._calcSpace(this.rightColumns, this.rightColumns.length) + "px";	
+			this.table.rowManager.tableElement.style.marginRight = this.rightMargin;
+		}
+	
 		//calculate right frozen columns
 		this.rightPadding = this.table.rowManager.element.clientWidth + this.table.columnManager.scrollLeft;
 	}
-
+	
 	//layout calculation rows
 	layoutCalcRows(){
 		if(this.table.modExists("columnCalcs")){
 			if(this.table.modules.columnCalcs.topInitialized && this.table.modules.columnCalcs.topRow){
 				this.layoutRow(this.table.modules.columnCalcs.topRow);
 			}
-
+			
 			if(this.table.modules.columnCalcs.botInitialized && this.table.modules.columnCalcs.botRow){
 				this.layoutRow(this.table.modules.columnCalcs.botRow);
 			}
-
+			
 			if(this.table.modExists("groupRows")){
 				this.layoutGroupCalcs(this.table.modules.groupRows.getGroups());
 			}
 		}
 	}
-
+	
 	layoutGroupCalcs(groups){
 		groups.forEach((group) => {
 			if(group.calcs.top){
 				this.layoutRow(group.calcs.top);
 			}
-
+			
 			if(group.calcs.bottom){
 				this.layoutRow(group.calcs.bottom);
 			}
-
+			
 			if(group.groupList && group.groupList.length){
 				this.layoutGroupCalcs(group.groupList && group.groupList);
 			}
 		});
 	}
-
+	
 	//calculate column positions and layout headers
 	layoutColumnPosition(allCells){
-
 		var leftParents = [];
+		
+		var leftMargin = 0;
+		var rightMargin = 0;
+		
+		this.table.columnManager.headersElement.style.marginLeft = this.leftMargin;
+		this.table.columnManager.element.style.paddingRight = this.rightMargin;
 
-		this.leftColumns.forEach((column, i) => {
-			column.modules.frozen.margin = (this._calcSpace(this.leftColumns, i) + this.table.columnManager.scrollLeft) + "px";
+		this.leftColumns.forEach((column, i) => {	
+			column.modules.frozen.margin = (leftMargin + this.table.columnManager.scrollLeft) + "px";
 
+			if(column.visible){
+				leftMargin += column.getWidth();
+			}
+			
 			if(i == this.leftColumns.length - 1){
 				column.modules.frozen.edge = true;
 			}else {
 				column.modules.frozen.edge = false;
 			}
-
+			
 			if(column.parent.isGroup){
 				var parentEl = this.getColGroupParentElement(column);
 				if(!leftParents.includes(parentEl)){
 					this.layoutElement(parentEl, column);
 					leftParents.push(parentEl);
 				}
-
+				
 				if(column.modules.frozen.edge){
 					parentEl.classList.add("tabulator-frozen-" + column.modules.frozen.position);
 				}
 			}else {
 				this.layoutElement(column.getElement(), column);
 			}
-
+			
 			if(allCells){
 				column.cells.forEach((cell) => {
 					this.layoutElement(cell.getElement(true), column);
 				});
 			}
 		});
-
+		
 		this.rightColumns.forEach((column, i) => {
-			column.modules.frozen.margin = (this.rightPadding - this._calcSpace(this.rightColumns, i + 1)) + "px";
 
+			if(column.visible){
+				rightMargin += column.getWidth();
+			}
+
+			column.modules.frozen.margin = (this.rightPadding - rightMargin) + "px";
+			
 			if(i == this.rightColumns.length - 1){
 				column.modules.frozen.edge = true;
 			}else {
 				column.modules.frozen.edge = false;
 			}
-
-
+			
+			
 			if(column.parent.isGroup){
 				this.layoutElement(this.getColGroupParentElement(column), column);
 			}else {
 				this.layoutElement(column.getElement(), column);
 			}
-
+			
 			if(allCells){
 				column.cells.forEach((cell) => {
 					this.layoutElement(cell.getElement(true), column);
@@ -10090,82 +10101,79 @@ class FrozenColumns extends Module{
 			}
 		});
 	}
-
+	
 	getColGroupParentElement(column){
 		return column.parent.isGroup ? this.getColGroupParentElement(column.parent) : column.getElement();
 	}
-
+	
 	//layout columns appropriately
 	layout(){
-
 		if(this.active && !this.blocked){
 			//calculate row padding
 			this.calcMargins();
-
+			
 			this.table.rowManager.getDisplayRows().forEach((row) =>{
 				if(row.type === "row"){
 					this.layoutRow(row);
 				}
 			});
-
+			
 			this.layoutCalcRows();
-
+			
 			//calculate left columns
 			this.layoutColumnPosition(true);
-
-			this.table.rowManager.tableElement.style.marginRight = this.rightMargin;
 		}
 	}
-
+	
 	layoutRow(row){
 		var rowEl = row.getElement();
-
+		
 		rowEl.style.paddingLeft = this.leftMargin;
-
+		
 		if(this.table.options.layout === "fitDataFill" && this.rightColumns.length){
 			this.table.rowManager.getTableElement().style.minWidth = "calc(100% - " + this.rightMargin + ")";
 		}
-
+		
 		this.leftColumns.forEach((column) => {
 			var cell = row.getCell(column);
-
+			
 			if(cell){
 				this.layoutElement(cell.getElement(true), column);
 			}
 		});
-
+		
 		this.rightColumns.forEach((column) => {
 			var cell = row.getCell(column);
-
+			
 			if(cell){
 				this.layoutElement(cell.getElement(true), column);
 			}
 		});
 	}
-
+	
 	layoutElement(element, column){
-
+		
 		if(column.modules.frozen){
 			element.style.position = "absolute";
 			element.style.left = column.modules.frozen.margin;
-
+			
 			element.classList.add("tabulator-frozen");
-
+			
 			if(column.modules.frozen.edge){
 				element.classList.add("tabulator-frozen-" + column.modules.frozen.position);
 			}
 		}
 	}
-
+	
 	_calcSpace(columns, index){
 		var width = 0;
-
+		
 		for (let i = 0; i < index; i++){
 			if(columns[i].visible){
 				width += columns[i].getWidth();
 			}
 		}
-
+		
 		return width;
 	}
 }
@@ -14253,28 +14261,36 @@ function rows(pageSize, currentRow, currentPage, totalRows, totalPages){
 	ofEl = document.createElement("span"),
 	totalEl = document.createElement("span"),
 	rowsEl = document.createElement("span");
-	
+
 	this.table.modules.localize.langBind("pagination|counter|showing", (value) => {
 		showingEl.innerHTML = value;
 	});
-	
-	valueEl.innerHTML = " " + currentRow + "-" + Math.min((currentRow + pageSize - 1), totalRows) + " ";
-	
+
 	this.table.modules.localize.langBind("pagination|counter|of", (value) => {
 		ofEl.innerHTML = value;
 	});
-	
-	totalEl.innerHTML = " " + totalRows + " ";
-	
+
 	this.table.modules.localize.langBind("pagination|counter|rows", (value) => {
 		rowsEl.innerHTML = value;
 	});
-	
-	el.appendChild(showingEl);
-	el.appendChild(valueEl);
-	el.appendChild(ofEl);
-	el.appendChild(totalEl);
-	el.appendChild(rowsEl);
+
+	if(totalRows){
+		valueEl.innerHTML = " " + currentRow + "-" + Math.min((currentRow + pageSize - 1), totalRows) + " ";
+		
+		totalEl.innerHTML = " " + totalRows + " ";
+		
+		el.appendChild(showingEl);
+		el.appendChild(valueEl);
+		el.appendChild(ofEl);
+		el.appendChild(totalEl);
+		el.appendChild(rowsEl);
+	}else {
+		valueEl.innerHTML = " 0 ";
+
+		el.appendChild(showingEl);
+		el.appendChild(valueEl);
+		el.appendChild(rowsEl);
+	}
 	
 	return el;
 }
@@ -15164,8 +15180,8 @@ class Page extends Module{
 	
 	//handle the footer element being redrawn
 	footerRedraw(){
-		var footer = this.table.footerManager.element;
-		
+		var footer = this.table.footerManager.containerElement;
+
 		if((Math.ceil(footer.clientWidth) - footer.scrollWidth) < 0){
 			this.pagesElement.style.display = 'none';
 		}else {
@@ -17223,7 +17239,9 @@ class SelectRow extends Module{
 				self._deselectRow(self.selectedRows[0], true);
 			}
 			
-			self._rowSelectionChanged(silent);
+			if(rowCount){
+				self._rowSelectionChanged(silent);
+			}
 			
 		}else {
 			if(Array.isArray(rows)){
@@ -18994,7 +19012,7 @@ class VirtualDomHorizontal extends Renderer{
 					this.vDomScrollPosRight = this.scrollLeft + this.elementVertical.clientWidth + this.window;
 					
 					var row = this.chain("rows-sample", [1], [], () => {
-						return this.table.rowManager.getDisplayRows()[0];
+						return this.table.rowManager.getDisplayRows();
 					})[0];
 					
 					if(row){
@@ -21685,7 +21703,7 @@ class FooterManager extends CoreFeature{
 					this.containerElement.innerHTML = this.table.options.footerElement;
 				}else {
 					this.external = true;
-					this.element = document.querySelector(this.table.options.footerElement);
+					this.containerElement = document.querySelector(this.table.options.footerElement);
 				}
 				break;
 
@@ -22002,7 +22020,7 @@ class InteractionManager extends CoreFeature {
 							return row.getElement() === target;
 						});
 						
-						if(targets["row"].parentNode && targets["row"].parentNode.closest(".tabulator-row")){
+						if(targets["row"] && targets["row"].parentNode && targets["row"].parentNode.closest(".tabulator-row")){
 							targets[key] = false;
 						}
 					}
@@ -23433,7 +23451,7 @@ class Tabulator {
 	_clearObjectPointers(){
 		this.options.columns = this.options.columns.slice(0);
 
-		if(this.options.data && !this.options.reactiveData){
+		if(Array.isArray(this.options.data) && !this.options.reactiveData){
 			this.options.data = this.options.data.slice(0);
 		}
 	}
