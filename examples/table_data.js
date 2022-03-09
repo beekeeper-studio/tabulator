@@ -1003,4 +1003,17 @@ export const tableData = [
 ]
 
 
+export const largeTableData = tableData.map((obj) => {
+	const keys = Object.keys(obj)
+	for (let index = 0; index < 10; index++) {
+			keys.forEach((k) => {
+			const newKey = `${k}${index}`
+			obj[newKey] = obj[k]
+		})
+		}
+	return obj
+})
+
+
 export const tableColumns = Object.keys(tableData[0]).map((k) => ({ title: k, field: k}))
+export const largeTableColumns = Object.keys(largeTableData[0]).map((k) => ({ title: k, field: k}))
