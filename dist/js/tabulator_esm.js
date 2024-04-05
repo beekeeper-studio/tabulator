@@ -1,4 +1,4 @@
-/* Tabulator v6.2.0 (c) Oliver Folkerd 2024 */
+/* Tabulator v6.2.0-bks.1 (c) Oliver Folkerd 2024 */
 class CoreFeature{
 
 	constructor(table){
@@ -14598,6 +14598,13 @@ class MoveColumns extends Module{
 		headerElement = this.table.columnManager.getContentsElement(),
 		headersElement = this.table.columnManager.getHeadersElement();
 		
+		//Prevent moving columns when range selection is active
+		if(this.table.modules.selectRange && this.table.modules.selectRange.columnSelection){
+			if(this.table.modules.selectRange.mousedown && this.table.modules.selectRange.selecting === "column"){
+				return;
+			}
+		}
+
 		this.moving = column;
 		this.startX = (this.touchMove ? e.touches[0].pageX : e.pageX) - Helpers.elOffset(element).left;
 		
@@ -14627,6 +14634,8 @@ class MoveColumns extends Module{
 		}
 		
 		this.moveHover(e);
+
+		this.dispatch("column-moving", e, this.moving);
 	}
 	
 	_bindMouseMove(){
@@ -14683,7 +14692,7 @@ class MoveColumns extends Module{
 			if(this.toCol){
 				this.table.columnManager.moveColumnActual(this.moving, this.toCol, this.toColAfter);
 			}
-			
+
 			this.moving = false;
 			this.toCol = false;
 			this.toColAfter = false;
@@ -19478,13 +19487,6 @@ class Range extends CoreFeature{
 		this.start = {row:0, col:0};
 		this.end = {row:0, col:0};
 
-		if(this.rangeManager.rowHeader){
-			this.left = 1;
-			this.right = 1;
-			this.start.col = 1;
-			this.end.col = 1;
-		}
-		
 		this.initElement();
 		
 		setTimeout(() => {
@@ -19539,21 +19541,12 @@ class Range extends CoreFeature{
 	}
 	
 	setStartBound(element){
-		var row, col;
-		
 		if (element.type === "column") {
 			if(this.rangeManager.columnSelection){
 				this.setStart(0, element.getPosition() - 1);
 			}
 		}else {
-			row = element.row.position - 1;
-			col = element.column.getPosition() - 1;
-			
-			if (element.column === this.rangeManager.rowHeader) {
-				this.setStart(row, 1);
-			} else {
-				this.setStart(row, col);
-			}
+			this.setStart(element.row.position - 1, element.column.getPosition() - 1);
 		}
 	}
 	
@@ -20040,6 +20033,7 @@ class SelectRange extends Module {
 		this.registerTableOption("selectableRangeRows", false); //enable selectable range
 		this.registerTableOption("selectableRangeClearCells", false); //allow clearing of active range
 		this.registerTableOption("selectableRangeClearCellsValue", undefined); //value for cleared active range
+		this.registerTableOption("selectableRangeAutoFocus", true); //focus on a cell after resetRanges
 		
 		this.registerTableFunction("getRangesData", this.getRangesData.bind(this));
 		this.registerTableFunction("getRanges", this.getRanges.bind(this));
@@ -20106,6 +20100,8 @@ class SelectRange extends Module {
 		this.subscribe("column-mousedown", this.handleColumnMouseDown.bind(this));
 		this.subscribe("column-mousemove", this.handleColumnMouseMove.bind(this));
 		this.subscribe("column-resized", this.handleColumnResized.bind(this));
+		this.subscribe("column-moving", this.handleColumnMoving.bind(this));
+		this.subscribe("column-moved", this.handleColumnMoved.bind(this));
 		this.subscribe("column-width", this.layoutChange.bind(this));
 		this.subscribe("column-height", this.layoutChange.bind(this));
 		this.subscribe("column-resized", this.layoutChange.bind(this));
@@ -20259,6 +20255,8 @@ class SelectRange extends Module {
 	
 	initializeFocus(cell){
 		var range;
+
+		this.restoreFocus();
 		
 		try{
 			if (document.selection) { // IE
@@ -20308,8 +20306,24 @@ class SelectRange extends Module {
 		});
 	}
 	
+	handleColumnMoving(_event, column) {
+		this.resetRanges().setBounds(column);
+		this.overlay.style.visibility = "hidden";
+	}
+
+	handleColumnMoved(from, _to, _after) {
+		this.activeRange.setBounds(from);
+		this.layoutElement();
+	}
+
 	handleColumnMouseDown(event, column) {
 		if (event.button === 2 && (this.selecting === "column" || this.selecting === "all") && this.activeRange.occupiesColumn(column)) {
+			return;
+		}
+
+		//If columns are movable, allow dragging columns only if they are not
+		//selected. Dragging selected columns should move the columns instead.
+		if(this.table.options.movableColumns && this.selecting === "column" && this.activeRange.occupiesColumn(column)){
 			return;
 		}
 		
@@ -20460,6 +20474,10 @@ class SelectRange extends Module {
 					nextRow = Math.min(nextRow + 1, this.getTableRows().length - 1);
 					break;
 			}
+		}
+
+		if(this.rowHeader && nextCol === 0) {
+			nextCol = 1;
 		}
 		
 		moved = nextCol !== rangeEdge.col || nextRow !== rangeEdge.row;
@@ -20882,7 +20900,9 @@ class SelectRange extends Module {
 
 			if(cell){
 				range.setBounds(cell);
-				this.initializeFocus(cell);
+				if(this.options("selectableRangeAutoFocus")){
+					this.initializeFocus(cell);
+				}
 			}
 		}
 		
