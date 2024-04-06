@@ -1,4 +1,4 @@
-/* Tabulator v6.2.0-bks.1 (c) Oliver Folkerd 2024 */
+/* Tabulator v6.2.0-bks.2 (c) Oliver Folkerd 2024 */
 class CoreFeature{
 
 	constructor(table){
@@ -19487,6 +19487,13 @@ class Range extends CoreFeature{
 		this.start = {row:0, col:0};
 		this.end = {row:0, col:0};
 
+		if(this.rangeManager.rowHeader){
+			this.left = 1;
+			this.right = 1;
+			this.start.col = 1;
+			this.end.col = 1;
+		}
+		
 		this.initElement();
 		
 		setTimeout(() => {
@@ -19541,12 +19548,21 @@ class Range extends CoreFeature{
 	}
 	
 	setStartBound(element){
+		var row, col;
+		
 		if (element.type === "column") {
 			if(this.rangeManager.columnSelection){
 				this.setStart(0, element.getPosition() - 1);
 			}
 		}else {
-			this.setStart(element.row.position - 1, element.column.getPosition() - 1);
+			row = element.row.position - 1;
+			col = element.column.getPosition() - 1;
+			
+			if (element.column === this.rangeManager.rowHeader) {
+				this.setStart(row, 1);
+			} else {
+				this.setStart(row, col);
+			}
 		}
 	}
 	
