@@ -1,4 +1,4 @@
-/* Tabulator v6.2.0-bks.2 (c) Oliver Folkerd 2024 */
+/* Tabulator v6.2.0-bks.3 (c) Oliver Folkerd 2024 */
 class CoreFeature{
 
 	constructor(table){
@@ -19397,7 +19397,7 @@ class RangeComponent {
 	}
 
 	getCells() {
-		return this._range.getCells(true);
+		return this._range.getCells(true, true);
 	}
 
 	getStructuredCells() {

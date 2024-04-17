@@ -1,4 +1,4 @@
-/* Tabulator v6.2.0-bks.2 (c) Oliver Folkerd 2024 */
+/* Tabulator v6.2.0-bks.3 (c) Oliver Folkerd 2024 */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
@@ -25607,7 +25607,7 @@
 		}
 
 		getCells() {
-			return this._range.getCells(true);
+			return this._range.getCells(true, true);
 		}
 
 		getStructuredCells() {
