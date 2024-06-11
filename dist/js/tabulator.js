@@ -1,4 +1,4 @@
-/* Tabulator v6.2.0-bks.5 (c) Oliver Folkerd 2024 */
+/* Tabulator v6.2.0-bks.6 (c) Oliver Folkerd 2024 */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
@@ -14049,6 +14049,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+
 				if(e){
 					e.preventDefault();
 				}
@@ -14079,6 +14083,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14109,6 +14117,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14130,6 +14142,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14151,6 +14167,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14172,6 +14192,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+
 				if(e){
 					e.preventDefault();
 				}
@@ -14272,6 +14296,7 @@
 				convertEmptyValues:convertEmpty,
 				editorEmptyValue:column.definition.editorEmptyValue,
 				editorEmptyValueFunc:column.definition.editorEmptyValueFunc,
+				navigationBlocked: false,
 			};
 			
 			//set column editor
@@ -26355,8 +26380,8 @@
 			this.subscribe("edit-editor-clear", this.finishEditingCell.bind(this));
 			this.subscribe("edit-blur", this.restoreFocus.bind(this));
 			
-			this.subscribe("keybinding-nav-prev", this.keyNavigate.bind(this, "left"));
-			this.subscribe("keybinding-nav-next", this.keyNavigate.bind(this, "right"));
+			this.subscribe("keybinding-nav-prev", this.keyNavigate.bind(this, "prev"));
+			this.subscribe("keybinding-nav-next", this.keyNavigate.bind(this, "next"));
 			this.subscribe("keybinding-nav-left", this.keyNavigate.bind(this, "left"));
 			this.subscribe("keybinding-nav-right", this.keyNavigate.bind(this, "right"));
 			this.subscribe("keybinding-nav-up", this.keyNavigate.bind(this, "up"));
@@ -26370,7 +26395,12 @@
 				console.warn("Using column headerSort with selectableRangeColumns option may result in unpredictable behavior. Consider using headerSortClickElement: 'icon'.");
 			}
 			
-			if (column.modules.edit) ;
+			if (column.modules.edit) {
+				// Block editor from taking action so we can trigger edit by
+				// double clicking.
+				// column.modules.edit.blocked = true;
+				column.modules.edit.navigationBlocked = true;
+			}
 		}
 		
 		updateHeaderColumn(){
@@ -26625,14 +26655,32 @@
 		///////     Navigation      ///////
 		///////////////////////////////////
 		
-		keyNavigate(dir, e){
-			if(this.navigate(false, false, dir));
+		keyNavigate(dir, e, jump = false, expand = false){
+			if(this.table.modules.edit && this.table.modules.edit.currentCell){
+				if(dir === 'next' || dir === 'prev'){
+					// Cancel edit and move to the next cell if editing
+					this.table.modules.edit.currentCell.getComponent().cancelEdit();
+				}else {
+					// Prevent navigating while editing except for next/prev
+					return false;
+				}
+			}
+
+			if (dir === 'prev') {
+				dir = 'left';
+			} else if (dir === 'next') {
+				dir = 'right';
+			}
+			
+			this.navigate(jump, expand, dir);
+
+			// Trap keyboard events here to avoid triggering keybindings outside of 
+			// tabulator. E.g. Pressing arrow can trigger page scrolling.
 			e.preventDefault();
 		}
 		
 		keyNavigateRange(e, dir, jump, expand){
-			if(this.navigate(jump, expand, dir));
-			e.preventDefault();
+			this.keyNavigate(dir, e, jump, expand);
 		}
 		
 		navigate(jump, expand, dir) {
