@@ -245,7 +245,7 @@ export default class ColumnManager extends CoreFeature {
 				break;
 			
 			default:
-				if(!isNaN(value) && value !== ""){
+				if(!isNaN(Number(value)) && value !== ""){
 					sorter = "number";
 				}else{
 					if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
