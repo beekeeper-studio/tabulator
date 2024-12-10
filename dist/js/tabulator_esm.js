@@ -1,4 +1,4 @@
-/* Tabulator v6.2.0-bks.6 (c) Oliver Folkerd 2024 */
+/* Tabulator v6.2.0-bks.7 (c) Oliver Folkerd 2024 */
 class CoreFeature{
 
 	constructor(table){
@@ -21600,7 +21600,7 @@ class Sort extends Module{
 						break;
 					
 					default:
-						if(!isNaN(value) && value !== ""){
+						if(!isNaN(Number(value)) && value !== ""){
 							sorter = "number";
 						}else {
 							if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
@@ -24205,7 +24205,7 @@ class ColumnManager extends CoreFeature {
 				break;
 			
 			default:
-				if(!isNaN(value) && value !== ""){
+				if(!isNaN(Number(value)) && value !== ""){
 					sorter = "number";
 				}else {
 					if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){

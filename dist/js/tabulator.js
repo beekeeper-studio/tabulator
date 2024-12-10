@@ -1,4 +1,4 @@
-/* Tabulator v6.2.0-bks.6 (c) Oliver Folkerd 2024 */
+/* Tabulator v6.2.0-bks.7 (c) Oliver Folkerd 2024 */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
@@ -2884,7 +2884,7 @@
 					break;
 				
 				default:
-					if(!isNaN(value) && value !== ""){
+					if(!isNaN(Number(value)) && value !== ""){
 						sorter = "number";
 					}else {
 						if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
@@ -27810,7 +27810,7 @@
 							break;
 						
 						default:
-							if(!isNaN(value) && value !== ""){
+							if(!isNaN(Number(value)) && value !== ""){
 								sorter = "number";
 							}else {
 								if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
