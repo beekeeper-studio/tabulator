@@ -1,4 +1,4 @@
-/* Tabulator v6.3.1 (c) Oliver Folkerd 2025 */
+/* Tabulator v6.3.1-bks.1 (c) Oliver Folkerd 2026 */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
@@ -2896,7 +2896,7 @@
 					break;
 				
 				default:
-					if(!isNaN(value) && value !== ""){
+					if(!isNaN(Number(value)) && value !== ""){
 						sorter = "number";
 					}else {
 						if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
@@ -5803,10 +5803,14 @@
 				//check if the table has changed size when dealing with variable height tables
 				if(!this.fixedHeight && initialHeight != this.element.clientHeight){
 					resized = true;
-					if(this.subscribed("table-resize")){
-						this.dispatch("table-resize");
-					}else {
-						this.redraw();
+					if(!this.redrawing){ // prevent recursive redraws		
+						this.redrawing = true;
+						if(this.subscribed("table-resize")){
+							this.dispatch("table-resize");
+						}else {
+							this.redraw();
+						}
+						this.redrawing = false;
 					}
 				}
 				
@@ -8319,7 +8323,7 @@
 			var style = window.getComputedStyle(this.element);
 			
 			switch(this.options.textDirection){
-				case"auto":
+				case "auto":
 					if(style.direction !== "rtl"){
 						break;
 					}
@@ -8460,6 +8464,7 @@
 			//clear DOM
 			while(element.firstChild) element.removeChild(element.firstChild);
 			element.classList.remove("tabulator");
+			element.removeAttribute("tabulator-layout");
 
 			this.externalEvents.dispatch("tableDestroyed");
 		}
@@ -14229,6 +14234,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+
 				if(e){
 					e.preventDefault();
 				}
@@ -14259,6 +14268,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14289,6 +14302,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14310,6 +14327,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14331,6 +14352,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14352,6 +14377,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+
 				if(e){
 					e.preventDefault();
 				}
@@ -14452,6 +14481,7 @@
 				convertEmptyValues:convertEmpty,
 				editorEmptyValue:column.definition.editorEmptyValue,
 				editorEmptyValueFunc:column.definition.editorEmptyValueFunc,
+				navigationBlocked: false,
 			};
 			
 			//set column editor
@@ -17785,7 +17815,9 @@
 
 			this.topElement.classList.add("tabulator-frozen-rows-holder");
 			
-			fragment.appendChild(document.createElement("br"));
+			// Replaced by adding padding-top to the tabulator-frozen-rows-holder
+			// See https://github.com/olifolkerd/tabulator/pull/4809
+			//fragment.appendChild(document.createElement("br"));
 			fragment.appendChild(this.topElement);
 
 			// this.table.columnManager.element.append(this.topElement);
@@ -24153,7 +24185,7 @@
 						enumerable: true,
 						configurable:true,
 						writable:true,
-						value: this.origFuncs.key,
+						value: this.origFuncs[key],
 					});
 				}
 			}
@@ -24941,7 +24973,7 @@
 		
 		initializeVisibilityObserver(){
 			this.visibilityObserver = new IntersectionObserver((entries) => {
-				this.visible = entries[0].isIntersecting;
+				this.visible = entries[entries.length - 1].isIntersecting;
 				
 				if(!this.initialized){
 					this.initialized = true;
@@ -26063,8 +26095,8 @@
 			this.right = 0;
 			
 			this.table = table;
-			this.start = {row:0, col:0};
-			this.end = {row:0, col:0};
+			this.start = {row:undefined, col:undefined};
+			this.end = {row:undefined, col:undefined};
 
 			if(this.rangeManager.rowHeader){
 				this.left = 1;
@@ -26995,13 +27027,15 @@
 		///////////////////////////////////
 		
 		keyNavigate(dir, e){
-			if(this.navigate(false, false, dir));
-			e.preventDefault();
+			if(this.navigate(false, false, dir)){
+				e.preventDefault();
+			}
 		}
 		
 		keyNavigateRange(e, dir, jump, expand){
-			if(this.navigate(jump, expand, dir));
-			e.preventDefault();
+			if(this.navigate(jump, expand, dir)){
+				e.preventDefault();
+			}
 		}
 		
 		navigate(jump, expand, dir) {
@@ -27119,9 +27153,8 @@
 				}
 
 				this.layoutElement();
-				
-				return true;
 			}
+			return true;
 		}
 		
 		rangeRemoved(removed){
@@ -27135,7 +27168,7 @@
 				}
 			}
 			
-			this.layoutElement();
+			this.layoutElement(true);
 		}
 		
 		findJumpRow(column, rows, reverse, emptyStart, emptySide){
@@ -27277,11 +27310,11 @@
 			}
 			
 			if (event.shiftKey) {
-				this.activeRange.setBounds(false, element);
+				this.activeRange.setBounds(false, element, true);
 			} else if (event.ctrlKey) {
-				this.addRange().setBounds(element);
+				this.addRange().setBounds(element, undefined, true);
 			} else {
-				this.resetRanges().setBounds(element);
+				this.resetRanges().setBounds(element, undefined, true);
 			}
 		}
 		
@@ -28157,7 +28190,7 @@
 							break;
 						
 						default:
-							if(!isNaN(value) && value !== ""){
+							if(!isNaN(Number(value)) && value !== ""){
 								sorter = "number";
 							}else {
 								if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
@@ -29621,9 +29654,7 @@
 		}
 	}
 
-	var TabulatorFull$1 = TabulatorFull;
-
-	return TabulatorFull$1;
+	return TabulatorFull;
 
 }));
 //# sourceMappingURL=tabulator.js.map
