@@ -1,3 +1,11 @@
+This branch contains version 6.2.0 including these fixes:
+- make autoFocus optional for SelectRange https://github.com/olifolkerd/tabulator/pull/4452
+- Break expanded range after pressing arrow keys https://github.com/olifolkerd/tabulator/pull/4478
+- fix autoscroll on long columns https://github.com/olifolkerd/tabulator/pull/4479
+- fix navigation conflict with SelectRange and Edit https://github.com/olifolkerd/tabulator/pull/4516
+- blur editor after pressing next/prev https://github.com/olifolkerd/tabulator/pull/4517
+- 13f9a9b9 fix errors when handling BigInt
+
 <p align="center">
   <img height="200" src="http://tabulator.info/images/logos/t_hollow.png">
 </p>
