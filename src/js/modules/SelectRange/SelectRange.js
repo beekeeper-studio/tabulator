@@ -128,8 +128,8 @@ export default class SelectRange extends Module {
 		this.subscribe("edit-editor-clear", this.finishEditingCell.bind(this));
 		this.subscribe("edit-blur", this.restoreFocus.bind(this));
 		
-		this.subscribe("keybinding-nav-prev", this.keyNavigate.bind(this, "prev"));
-		this.subscribe("keybinding-nav-next", this.keyNavigate.bind(this, "next"));
+		this.subscribe("keybinding-nav-prev", this.keyNavigate.bind(this, "left"));
+		this.subscribe("keybinding-nav-next", this.keyNavigate.bind(this, "right"));
 		this.subscribe("keybinding-nav-left", this.keyNavigate.bind(this, "left"));
 		this.subscribe("keybinding-nav-right", this.keyNavigate.bind(this, "right"));
 		this.subscribe("keybinding-nav-up", this.keyNavigate.bind(this, "up"));
@@ -147,7 +147,6 @@ export default class SelectRange extends Module {
 			// Block editor from taking action so we can trigger edit by
 			// double clicking.
 			// column.modules.edit.blocked = true;
-			column.modules.edit.navigationBlocked = true;
 		}
 	}
 	
@@ -403,32 +402,16 @@ export default class SelectRange extends Module {
 	///////     Navigation      ///////
 	///////////////////////////////////
 	
-	keyNavigate(dir, e, jump = false, expand = false){
-		if(this.table.modules.edit && this.table.modules.edit.currentCell){
-			if(dir === 'next' || dir === 'prev'){
-				// Cancel edit and move to the next cell if editing
-				this.table.modules.edit.currentCell.getComponent().cancelEdit();
-			}else{
-				// Prevent navigating while editing except for next/prev
-				return false;
-			}
+	keyNavigate(dir, e){
+		if(this.navigate(false, false, dir)){
+			e.preventDefault();
 		}
-
-		if (dir === 'prev') {
-			dir = 'left';
-		} else if (dir === 'next') {
-			dir = 'right';
-		}
-		
-		this.navigate(jump, expand, dir);
-
-		// Trap keyboard events here to avoid triggering keybindings outside of 
-		// tabulator. E.g. Pressing arrow can trigger page scrolling.
-		e.preventDefault();
 	}
 	
 	keyNavigateRange(e, dir, jump, expand){
-		this.keyNavigate(dir, e, jump, expand);
+		if(this.navigate(jump, expand, dir)){
+			e.preventDefault();
+		}
 	}
 	
 	navigate(jump, expand, dir) {
@@ -536,7 +519,7 @@ export default class SelectRange extends Module {
 				}
 			}
 
-			if(!(columnRect.left >= columnManagerRect.left + this.rowHeaderWidth && columnRect.right <= columnManagerRect.right)){
+			if(!(columnRect.left >= columnManagerRect.left + this.getRowHeaderWidth() && columnRect.right <= columnManagerRect.right)){
 				if(row.getElement().parentNode && column.getElement().parentNode){
 					// Use faster autoScroll when the elements are on the DOM
 					this.autoScroll(range, row.getElement(), column.getElement());
@@ -546,9 +529,8 @@ export default class SelectRange extends Module {
 			}
 
 			this.layoutElement();
-			
-			return true;
 		}
+		return true;
 	}
 	
 	rangeRemoved(removed){
@@ -562,7 +544,7 @@ export default class SelectRange extends Module {
 			}
 		}
 		
-		this.layoutElement();
+		this.layoutElement(true);
 	}
 	
 	findJumpRow(column, rows, reverse, emptyStart, emptySide){
@@ -704,11 +686,11 @@ export default class SelectRange extends Module {
 		}
 		
 		if (event.shiftKey) {
-			this.activeRange.setBounds(false, element);
+			this.activeRange.setBounds(false, element, true);
 		} else if (event.ctrlKey) {
-			this.addRange().setBounds(element);
+			this.addRange().setBounds(element, undefined, true);
 		} else {
-			this.resetRanges().setBounds(element);
+			this.resetRanges().setBounds(element, undefined, true);
 		}
 	}
 	
@@ -732,7 +714,7 @@ export default class SelectRange extends Module {
 		};
 		
 		view = {
-			left: tableHolder.scrollLeft + this.rowHeaderWidth,
+			left: tableHolder.scrollLeft + this.getRowHeaderWidth(),
 			right: Math.ceil(tableHolder.scrollLeft + tableHolder.clientWidth),
 			top: tableHolder.scrollTop,
 			bottom:	tableHolder.scrollTop +	tableHolder.offsetHeight - this.table.rowManager.scrollbarWidth,
@@ -744,9 +726,9 @@ export default class SelectRange extends Module {
 		
 		if (!withinHorizontalView) {
 			if (rect.left < view.left) {
-				tableHolder.scrollLeft = rect.left - this.rowHeaderWidth;
+				tableHolder.scrollLeft = rect.left - this.getRowHeaderWidth();
 			} else if (rect.right > view.right) {
-				tableHolder.scrollLeft = Math.min(rect.right - tableHolder.clientWidth, rect.left - this.rowHeaderWidth);
+				tableHolder.scrollLeft = Math.min(rect.right - tableHolder.clientWidth, rect.left - this.getRowHeaderWidth());
 			}
 		}
 		
@@ -959,14 +941,14 @@ export default class SelectRange extends Module {
 		return component ? this.activeRange.getColumns().map((col) => col.getComponent()) : this.activeRange.getColumns();
 	}
 
-	isEmpty(value) {
-		return value === null || value === undefined || value === "";
-	}
-
-	get rowHeaderWidth(){
+	getRowHeaderWidth(){
 		if(!this.rowHeader){
 			return 0;
 		}
 		return this.rowHeader.getElement().offsetWidth;
+	}
+
+	isEmpty(value) {
+		return value === null || value === undefined || value === "";
 	}
 }

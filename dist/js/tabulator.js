@@ -1,4 +1,4 @@
-/* Tabulator v6.2.0-bks.7 (c) Oliver Folkerd 2024 */
+/* Tabulator v6.3.1 (c) Oliver Folkerd 2025 */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
@@ -66,10 +66,10 @@
 		dataLoaderLoading:false,
 		dataLoaderError:false,
 		dataLoaderErrorTimeout:3000,
-
 		dataSendParams:{},
-
 		dataReceiveParams:{},
+
+		dependencies:{},
 	};
 
 	class CoreFeature{
@@ -1396,6 +1396,9 @@
 				});
 				
 				this.contentElement.style.maxWidth = (childWidth - 1) + "px";
+				if (this.table.initialized) {
+					this.element.style.width = childWidth + "px";
+				}
 				
 				if(this.parent.isGroup){
 					this.parent.matchChildWidths();
@@ -1660,10 +1663,15 @@
 				
 				if(maxWidth){
 					var setTo = maxWidth + 1;
-					if (this.maxInitialWidth && !force) {
-						setTo = Math.min(setTo, this.maxInitialWidth);
+					
+					if(force){
+						this.setWidth(setTo);
+					}else {
+						if (this.maxInitialWidth && !force) {
+							setTo = Math.min(setTo, this.maxInitialWidth);
+						}
+						this.setWidthActual(setTo);
 					}
-					this.setWidthActual(setTo);
 				}
 			}
 		}
@@ -2186,7 +2194,7 @@
 				if(column.visible){
 					if(!column.modules.frozen){			
 						width = column.getWidth();
-
+						
 						config.leftPos = colPos;
 						config.rightPos = colPos + width;
 						
@@ -2244,7 +2252,7 @@
 					rowFrag.appendChild(cell.getElement());
 				});
 				row.element.appendChild(rowFrag);
-
+				
 				row.cells.forEach((cell) => {
 					cell.cellRendered();
 				});
@@ -2257,7 +2265,11 @@
 		
 		reinitializeColumnWidths(columns){
 			for(let i = this.leftCol; i <= this.rightCol; i++){
-				this.columns[i].reinitializeWidth();
+				let col = this.columns[i];
+				
+				if(col){
+					col.reinitializeWidth();
+				}
 			}
 		}
 		
@@ -2345,11 +2357,11 @@
 		reinitializeRows(){
 			var visibleRows = this.getVisibleRows(),
 			otherRows = this.table.rowManager.getRows().filter(row => !visibleRows.includes(row));
-
+			
 			visibleRows.forEach((row) => {
 				this.reinitializeRow(row, true);
 			});
-
+			
 			otherRows.forEach((row) =>{
 				row.deinitialize();
 			});
@@ -2396,7 +2408,7 @@
 			working = true;
 			
 			while(working){
-
+				
 				let column = this.columns[this.rightCol + 1];
 				
 				if(column){
@@ -2414,7 +2426,7 @@
 						this.fitDataColActualWidthCheck(column);
 						
 						this.rightCol++; // Don't move this below the >= check below
-
+						
 						this.getVisibleRows().forEach((row) => {
 							if(row.type !== "group"){
 								row.modules.vdomHoz.rightCol = this.rightCol;
@@ -2459,7 +2471,7 @@
 						});
 						
 						this.leftCol--; // don't move this below the <= check below
-
+						
 						this.getVisibleRows().forEach((row) => {
 							if(row.type !== "group"){
 								row.modules.vdomHoz.leftCol = this.leftCol;
@@ -2517,7 +2529,7 @@
 						
 						this.vDomPadRight += column.getWidth();
 						this.rightCol --;
-
+						
 						this.getVisibleRows().forEach((row) => {
 							if(row.type !== "group"){
 								row.modules.vdomHoz.rightCol = this.rightCol;
@@ -2539,7 +2551,7 @@
 		removeColLeft(){
 			var changes = false,
 			working = true;
-
+			
 			while(working){
 				let column = this.columns[this.leftCol];
 				
@@ -2561,7 +2573,7 @@
 						
 						this.vDomPadLeft += column.getWidth();
 						this.leftCol ++;
-
+						
 						this.getVisibleRows().forEach((row) => {
 							if(row.type !== "group"){
 								row.modules.vdomHoz.leftCol = this.leftCol;
@@ -2607,17 +2619,17 @@
 					leftCol:this.leftCol,
 					rightCol:this.rightCol,
 				};
-
+				
 				if(this.table.modules.frozenColumns){
 					this.table.modules.frozenColumns.leftColumns.forEach((column) => {
 						this.appendCell(row, column);
 					});
 				}
-
+				
 				for(let i = this.leftCol; i <= this.rightCol; i++){
 					this.appendCell(row, this.columns[i]);
 				}
-
+				
 				if(this.table.modules.frozenColumns){
 					this.table.modules.frozenColumns.rightColumns.forEach((column) => {
 						this.appendCell(row, column);
@@ -2641,7 +2653,7 @@
 					
 					var rowEl = row.getElement();
 					while(rowEl.firstChild) rowEl.removeChild(rowEl.firstChild);
-
+					
 					this.initializeRow(row);
 				}
 			}
@@ -2884,7 +2896,7 @@
 					break;
 				
 				default:
-					if(!isNaN(Number(value)) && value !== ""){
+					if(!isNaN(value) && value !== ""){
 						sorter = "number";
 					}else {
 						if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
@@ -3684,12 +3696,15 @@
 
 		calcMaxHeight(){
 			var maxHeight = 0;
+
 			this.cells.forEach(function(cell){
 				var height = cell.getHeight();
+
 				if(height > maxHeight){
 					maxHeight = height;
 				}
 			});
+
 			return maxHeight;
 		}
 		
@@ -5755,9 +5770,9 @@
 		}
 		
 		//normalize height of active rows
-		normalizeHeight(){
+		normalizeHeight(force){
 			this.activeRows.forEach(function(row){
-				row.normalizeHeight();
+				row.normalizeHeight(force);
 			});
 		}
 		
@@ -6198,8 +6213,9 @@
 			var keys = Object.keys(targets).reverse(),
 			listener = this.listeners[type],
 			matches = {},
+			output = {},
 			targetMatches = {};
-			
+		
 			for(let key of keys){
 				let component,
 				target = targets[key],
@@ -6254,8 +6270,14 @@
 			}
 			
 			this.previousTargets = targetMatches;
+
+			//reverse order keys are set in so events trigger in correct sequence
+			Object.keys(targets).forEach((key) => {
+				let value = matches[key];
+				output[key] = value;
+			});
 			
-			return matches;
+			return output;
 		}
 		
 		triggerEvents(type, e, targets){
@@ -6759,6 +6781,87 @@
 		}
 	}
 
+	class DependencyRegistry extends CoreFeature{
+		
+		constructor(table){
+			super(table);
+			
+			this.deps = {};
+			
+			this.props = {
+				
+			};
+		}
+		
+		initialize(){
+			this.deps = Object.assign({}, this.options("dependencies"));
+		}
+		
+		lookup(key, prop, silent){
+			if(Array.isArray(key)){
+				for (const item of key) {
+					var match = this.lookup(item, prop, true);
+
+					if(match){
+						break;
+					}
+				}
+
+				if(match){
+					return match;
+				}else {
+					this.error(key);
+				}
+			}else {
+				if(prop){
+					return this.lookupProp(key, prop, silent);
+				}else {
+					return this.lookupKey(key, silent);
+				}
+			}
+		}
+		
+		lookupProp(key, prop, silent){
+			var dependency;
+			
+			if(this.props[key] && this.props[key][prop]){
+				return this.props[key][prop];
+			}else {
+				dependency = this.lookupKey(key, silent);
+				
+				if(dependency){
+					if(!this.props[key]){
+						this.props[key] = {};
+					}
+					
+					this.props[key][prop] = dependency[prop] || dependency;
+					return this.props[key][prop];
+				}
+			}
+		}
+		
+		lookupKey(key, silent){
+			var dependency;
+			
+			if(this.deps[key]){
+				dependency = this.deps[key];
+			}else if(window[key]){
+				this.deps[key] = window[key];
+				dependency = this.deps[key];
+			}else {
+				if(!silent){
+					this.error(key);
+				}
+			}
+			
+			return dependency;
+		}
+
+		error(key){
+			console.error("Unable to find dependency", key, "Please check documentation and ensure you have imported the required library into your project");
+		}
+	}
+
 	let Popup$1 = class Popup extends CoreFeature{
 		constructor(table, element, parent){
 			super(table);
@@ -6954,7 +7057,8 @@
 			}
 			
 			//move menu to start on bottom edge if it is too close to the edge of the screen
-			if((y + this.element.offsetHeight) > Math.max(this.container.offsetHeight, scrollTop ? this.container.scrollHeight : 0)) {
+			let offsetHeight = Math.max(this.container.offsetHeight, scrollTop ? this.container.scrollHeight : 0);
+			if((y + this.element.offsetHeight) > offsetHeight) {
 				if(parentEl){
 					switch(position){
 						case "bottom":
@@ -6966,7 +7070,7 @@
 					}
 					
 				}else {
-					this.element.style.top = (parseInt(this.element.style.top) - this.element.offsetHeight) + "px";
+					this.element.style.height = offsetHeight + "px";
 				}
 			}
 		}
@@ -7492,8 +7596,16 @@
 
 		//trigger table layout
 		layout(dataChanged){
+
+			var variableHeight = this.table.columnManager.columnsByIndex.find((column) => column.definition.variableHeight || column.definition.formatter === "textarea");
+			
 			this.dispatch("layout-refreshing");
 			Layout.modes[this.mode].call(this, this.table.columnManager.columnsByIndex, dataChanged);
+
+			if(variableHeight){
+				this.table.rowManager.normalizeHeight(true);
+			}
+
 			this.dispatch("layout-refreshed");
 		}
 	}
@@ -8097,6 +8209,8 @@
 			
 			this.deprecationAdvisor = new DeprecationAdvisor(this);
 			this.optionsList = new OptionsList(this, "table constructor");
+
+			this.dependencyRegistry = new DependencyRegistry(this);
 			
 			this.initialized = false;
 			this.destroyed = false;
@@ -8154,9 +8268,9 @@
 			this.interactionMonitor = new InteractionManager(this);
 			
 			this.dataLoader.initialize();
-			// this.columnManager.initialize();
-			// this.rowManager.initialize();
 			this.footerManager.initialize();
+
+			this.dependencyRegistry.initialize();
 		}
 		
 		//convert deprecated functionality to new functions
@@ -10349,12 +10463,12 @@
 					
 					if(column.definition[pos + "CalcFormatter"] && this.table.modExists("format")){
 						this.genColumn.modules.format = {
-							formatter: this.table.modules.format.getFormatter(column.definition[pos + "CalcFormatter"]),
+							formatter: this.table.modules.format.lookupFormatter(column.definition[pos + "CalcFormatter"]),
 							params: column.definition[pos + "CalcFormatterParams"] || {},
 						};
 					}else {
 						this.genColumn.modules.format = {
-							formatter: this.table.modules.format.getFormatter("plaintext"),
+							formatter: this.table.modules.format.lookupFormatter("plaintext"),
 							params:{}
 						};
 					}
@@ -10598,6 +10712,7 @@
 
 				this.subscribe("row-init", this.initializeRow.bind(this));
 				this.subscribe("row-layout-after", this.layoutRow.bind(this));
+				this.subscribe("row-deleting", this.rowDeleting.bind(this));
 				this.subscribe("row-deleted", this.rowDelete.bind(this),0);
 				this.subscribe("row-data-changed", this.rowDataChanged.bind(this), 10);
 				this.subscribe("cell-value-updated", this.cellValueChanged.bind(this));
@@ -10937,6 +11052,18 @@
 			return output;
 		}
 
+		rowDeleting(row){
+			var config = row.modules.dataTree;
+
+			if (config && config.children && Array.isArray(config.children)){
+				config.children.forEach((childRow) => {
+					if(childRow instanceof Row){
+						childRow.wipe();
+					}
+				});
+			}
+		}
+
 		rowDelete(row){
 			var parent = row.modules.dataTree.parent,
 			childIndex;
@@ -11141,7 +11268,7 @@
 		setFileContents(fileContents, "text/csv");
 	}
 
-	function json$1(list, options, setFileContents){
+	function json$2(list, options, setFileContents){
 		var fileContents = [];
 
 		list.forEach((row) => {
@@ -11193,7 +11320,8 @@
 			fillColor: 232,
 		},
 		jsPDFParams = options.jsPDF || {},
-		title = options.title ? options.title : "";
+		title = options.title ? options.title : "",
+		jspdfLib, doc;
 
 		if(!jsPDFParams.orientation){
 			jsPDFParams.orientation = options.orientation || "landscape";
@@ -11260,7 +11388,8 @@
 
 
 		//configure PDF
-		var doc = new jspdf.jsPDF(jsPDFParams); //set document to landscape, better for most tables
+		jspdfLib = this.dependencyRegistry.lookup("jspdf", "jsPDF");
+		doc = new jspdfLib(jsPDFParams); //set document to landscape, better for most tables
 
 		if(options.autoTable){
 			if(typeof options.autoTable === "function"){
@@ -11291,7 +11420,8 @@
 	function xlsx$1(list, options, setFileContents){
 		var self = this,
 		sheetName = options.sheetName || "Sheet1",
-		workbook = XLSX.utils.book_new(),
+		XLSXLib = this.dependencyRegistry.lookup("XLSX"),
+		workbook = XLSXLib.utils.book_new(),
 		tableFeatures = new CoreFeature(this),
 		compression =  'compress' in options ? options.compress : true,
 		writeOptions = options.writeOptions || {bookType:'xlsx', bookSST:true, compression},
@@ -11331,9 +11461,9 @@
 			});
 
 			//convert rows to worksheet
-			XLSX.utils.sheet_add_aoa(worksheet, rows);
+			XLSXLib.utils.sheet_add_aoa(worksheet, rows);
 
-			worksheet['!ref'] = XLSX.utils.encode_range(range);
+			worksheet['!ref'] = XLSXLib.utils.encode_range(range);
 
 			if(merges.length){
 				worksheet["!merges"] = merges;
@@ -11384,7 +11514,7 @@
 			return buf;
 		}
 
-		output = XLSX.write(workbook, writeOptions);
+		output = XLSXLib.write(workbook, writeOptions);
 
 		setFileContents(s2ab(output), "application/octet-stream");
 	}
@@ -11430,7 +11560,7 @@
 
 	var defaultDownloaders = {
 		csv:csv$1,
-		json:json$1,
+		json:json$2,
 		jsonLines:jsonLines,
 		pdf:pdf,
 		xlsx:xlsx$1,
@@ -11450,7 +11580,6 @@
 			this.registerTableOption("downloadEncoder", function(data, mimeType){
 				return new Blob([data],{type:mimeType});
 			}); //function to manipulate download data
-			// this.registerTableOption("downloadReady", undefined); //warn of function deprecation
 			this.registerTableOption("downloadConfig", {}); //download config
 			this.registerTableOption("downloadRowRange", "active"); //restrict download to active rows only
 
@@ -11466,7 +11595,7 @@
 		}
 
 		deprecatedOptionsCheck(){
-			// this.deprecationCheck("downloadReady", "downloadEncoder");
+
 		}	
 
 		///////////////////////////////////
@@ -12315,7 +12444,7 @@
 	function datetime$2(cell, onRendered, success, cancel, editorParams){
 		var inputFormat = editorParams.format,
 		vertNav = editorParams.verticalNavigation || "editor",
-		DT = inputFormat ? (window.DateTime || luxon.DateTime) : null, 
+		DT = inputFormat ? (this.table.dependencyRegistry.lookup(["luxon", "DateTime"], "DateTime")) : null, 
 		newDatetime;
 		
 		//create and style input
@@ -13037,8 +13166,17 @@
 				data.forEach((row) => {
 					var val = column.getFieldValue(row);
 					
-					if(val !== null && typeof val !== "undefined" && val !== ""){
-						output[val] = true;
+					if(!this._emptyValueCheck(val)){
+						if(this.params.multiselect && Array.isArray(val)){
+							val.forEach((item) => {
+								if(!this._emptyValueCheck(item)){
+									output[item] = true;
+								}
+							});
+						}else {
+							output[val] = true;
+						}
+						
 					}
 				});
 			}else {
@@ -13048,7 +13186,10 @@
 			
 			return Object.keys(output);
 		}
-		
+
+		_emptyValueCheck(value){
+			return value === null || typeof value === "undefined" || value === "";
+		}
 		
 		_parseList(inputValues){
 			var data = [];
@@ -13860,6 +14001,44 @@
 		return input;
 	}
 
+	function adaptable$1(cell, onRendered, success, cancel, params){
+		var column = cell._getSelf().column,
+		lookup, editorFunc, editorParams;
+	    
+		function defaultLookup(cell){
+			var value = cell.getValue(),
+			editor = "input";
+	        
+			switch(typeof value){
+				case "number":
+					editor = "number";
+					break;
+	            
+				case "boolean":
+					editor = "tickCross";
+					break;
+	            
+				case "string":
+					if(value.includes("\n")){
+						editor = "textarea";
+					}
+					break;
+			}
+	        
+			return editor;
+		}
+	    
+		lookup = params.editorLookup ? params.editorLookup(cell) : defaultLookup(cell);
+
+		if(params.paramsLookup){
+			editorParams = typeof params.paramsLookup === "function" ? params.paramsLookup(lookup, cell) : params.paramsLookup[lookup];
+		}
+
+		editorFunc = this.table.modules.edit.lookupEditor(lookup, column);
+	    
+		return  editorFunc.call(this, cell, onRendered, success, cancel, editorParams || {});
+	}
+
 	var defaultEditors = {
 		input:input,
 		textarea:textarea$1,
@@ -13872,6 +14051,7 @@
 		star:star$1,
 		progress:progress$1,
 		tickCross:tickCross$1,
+		adaptable:adaptable$1,
 	};
 
 	class Edit extends Module{
@@ -14049,10 +14229,6 @@
 			
 			if(cell){
 				
-				if(cell.column.modules.edit.navigationBlocked){
-					return false;
-				}
-
 				if(e){
 					e.preventDefault();
 				}
@@ -14083,10 +14259,6 @@
 			
 			if(cell){
 				
-				if(cell.column.modules.edit.navigationBlocked){
-					return false;
-				}
-			
 				if(e){
 					e.preventDefault();
 				}
@@ -14117,10 +14289,6 @@
 			
 			if(cell){
 				
-				if(cell.column.modules.edit.navigationBlocked){
-					return false;
-				}
-			
 				if(e){
 					e.preventDefault();
 				}
@@ -14142,10 +14310,6 @@
 			
 			if(cell){
 				
-				if(cell.column.modules.edit.navigationBlocked){
-					return false;
-				}
-			
 				if(e){
 					e.preventDefault();
 				}
@@ -14167,10 +14331,6 @@
 			
 			if(cell){
 				
-				if(cell.column.modules.edit.navigationBlocked){
-					return false;
-				}
-			
 				if(e){
 					e.preventDefault();
 				}
@@ -14192,10 +14352,6 @@
 			
 			if(cell){
 				
-				if(cell.column.modules.edit.navigationBlocked){
-					return false;
-				}
-
 				if(e){
 					e.preventDefault();
 				}
@@ -14296,30 +14452,39 @@
 				convertEmptyValues:convertEmpty,
 				editorEmptyValue:column.definition.editorEmptyValue,
 				editorEmptyValueFunc:column.definition.editorEmptyValueFunc,
-				navigationBlocked: false,
 			};
 			
 			//set column editor
-			switch(typeof column.definition.editor){
+			config.editor = this.lookupEditor(column.definition.editor, column);
+			
+			if(config.editor){
+				column.modules.edit = config;
+			}
+		}
+
+		lookupEditor(editor, column){
+			var editorFunc;
+
+			switch(typeof editor){
 				case "string":
-					if(this.editors[column.definition.editor]){
-						config.editor = this.editors[column.definition.editor];
+					if(this.editors[editor]){
+						editorFunc = this.editors[editor];
 					}else {
-						console.warn("Editor Error - No such editor found: ", column.definition.editor);
+						console.warn("Editor Error - No such editor found: ", editor);
 					}
 					break;
 				
 				case "function":
-					config.editor = column.definition.editor;
+					editorFunc = editor;
 					break;
 				
 				case "boolean":
-					if(column.definition.editor === true){
+					if(editor === true){
 						if(typeof column.definition.formatter !== "function"){
 							if(this.editors[column.definition.formatter]){
-								config.editor = this.editors[column.definition.formatter];
+								editorFunc = this.editors[column.definition.formatter];
 							}else {
-								config.editor = this.editors["input"];
+								editorFunc = this.editors["input"];
 							}
 						}else {
 							console.warn("Editor Error - Cannot auto lookup editor for a custom formatter: ", column.definition.formatter);
@@ -14327,10 +14492,8 @@
 					}
 					break;
 			}
-			
-			if(config.editor){
-				column.modules.edit = config;
-			}
+
+			return editorFunc;
 		}
 		
 		getCurrentCell(){
@@ -16606,7 +16769,7 @@
 	}
 
 	function datetime$1(cell, formatterParams, onRendered){
-		var DT = window.DateTime || luxon.DateTime;
+		var DT = this.table.dependencyRegistry.lookup(["luxon", "DateTime"], "DateTime");
 		var inputFormat = formatterParams.inputFormat || "yyyy-MM-dd HH:mm:ss";
 		var	outputFormat = formatterParams.outputFormat || "dd/MM/yyyy HH:mm:ss";
 		var	invalid = typeof formatterParams.invalidPlaceholder !== "undefined" ? formatterParams.invalidPlaceholder : "";
@@ -16644,7 +16807,7 @@
 	}
 
 	function datetimediff (cell, formatterParams, onRendered) {
-		var DT = window.DateTime || luxon.DateTime;
+		var DT = this.table.dependencyRegistry.lookup(["luxon", "DateTime"], "DateTime");
 		var inputFormat = formatterParams.inputFormat || "yyyy-MM-dd HH:mm:ss";
 		var invalid = typeof formatterParams.invalidPlaceholder !== "undefined" ? formatterParams.invalidPlaceholder : "";
 		var suffix = typeof formatterParams.suffix !== "undefined" ? formatterParams.suffix : false;
@@ -16997,6 +17160,81 @@
 		return "<div class='tabulator-row-handle-box'><div class='tabulator-row-handle-bar'></div><div class='tabulator-row-handle-bar'></div><div class='tabulator-row-handle-bar'></div></div>";
 	}
 
+	function adaptable(cell, params, onRendered){
+		var lookup, formatterFunc, formatterParams;
+	    
+		function defaultLookup(cell){
+			var value = cell.getValue(),
+			formatter = "plaintext";
+	        
+			switch(typeof value){           
+				case "boolean":
+					formatter = "tickCross";
+					break;
+	            
+				case "string":
+					if(value.includes("\n")){
+						formatter = "textarea";
+					}
+					break;
+			}
+	        
+			return formatter;
+		}
+	    
+		lookup = params.formatterLookup ? params.formatterLookup(cell) : defaultLookup(cell);
+
+		if(params.paramsLookup){
+			formatterParams = typeof params.paramsLookup === "function" ? params.paramsLookup(lookup, cell) : params.paramsLookup[lookup];
+		}
+
+		formatterFunc = this.table.modules.format.lookupFormatter(lookup);
+	    
+		return  formatterFunc.call(this, cell, formatterParams || {}, onRendered);
+	}
+
+	function array$2(cell, formatterParams, onRendered){
+		var delimiter = formatterParams.delimiter || ",",
+		value = cell.getValue(),
+		table = this.table,
+		valueMap;
+		
+		if(formatterParams.valueMap){
+			if(typeof formatterParams.valueMap === "string"){
+				valueMap = function(value){
+					return value.map((item) => {
+						return Helpers.retrieveNestedData(table.options.nestedFieldSeparator, formatterParams.valueMap, item);
+					});
+				};
+			}else {
+				valueMap = formatterParams.valueMap;
+			}
+		}
+
+		if(Array.isArray(value)){
+			if(valueMap){
+				value = valueMap(value);
+			}
+
+			return value.join(delimiter);
+		}else {
+			return value;
+		}
+	}
+
+	function json$1(cell, formatterParams, onRendered){
+		var indent = formatterParams.indent || "\t",
+		multiline = typeof formatterParams.multiline === "undefined" ? true : formatterParams.multiline,
+		replacer = formatterParams.replacer || null,
+		value = cell.getValue();
+		
+		if(multiline){
+			cell.getElement().style.whiteSpace = "pre-wrap";
+		}
+
+		return JSON.stringify(value, replacer, indent);
+	}
+
 	var defaultFormatters = {
 		plaintext:plaintext,
 		html:html,
@@ -17017,12 +17255,15 @@
 		toggle:toggle,
 		rownum:rownum,
 		handle:handle,
+		adaptable:adaptable,
+		array:array$2,
+		json:json$1,
 	};
 
 	class Format extends Module{
-
+		
 		static moduleName = "format";
-
+		
 		//load defaults
 		static formatters = defaultFormatters;
 		
@@ -17051,46 +17292,55 @@
 		
 		//initialize column formatter
 		initializeColumn(column){
-			column.modules.format = this.lookupFormatter(column, "");
+			column.modules.format = this.lookupTypeFormatter(column, "");
 			
 			if(typeof column.definition.formatterPrint !== "undefined"){
-				column.modules.format.print = this.lookupFormatter(column, "Print");
+				column.modules.format.print = this.lookupTypeFormatter(column, "Print");
 			}
 			
 			if(typeof column.definition.formatterClipboard !== "undefined"){
-				column.modules.format.clipboard = this.lookupFormatter(column, "Clipboard");
+				column.modules.format.clipboard = this.lookupTypeFormatter(column, "Clipboard");
 			}
 			
 			if(typeof column.definition.formatterHtmlOutput !== "undefined"){
-				column.modules.format.htmlOutput = this.lookupFormatter(column, "HtmlOutput");
+				column.modules.format.htmlOutput = this.lookupTypeFormatter(column, "HtmlOutput");
 			}
 		}
 		
-		lookupFormatter(column, type){
+		lookupTypeFormatter(column, type){
 			var config = {params:column.definition["formatter" + type + "Params"] || {}},
 			formatter = column.definition["formatter" + type];
 			
+			config.formatter = this.lookupFormatter(formatter);
+			
+			return config;
+		}
+		
+		
+		lookupFormatter(formatter){
+			var formatterFunc;
+
 			//set column formatter
 			switch(typeof formatter){
 				case "string":
 					if(Format.formatters[formatter]){
-						config.formatter = Format.formatters[formatter];
+						formatterFunc = Format.formatters[formatter];
 					}else {
 						console.warn("Formatter Error - No such formatter found: ", formatter);
-						config.formatter = Format.formatters.plaintext;
+						formatterFunc = Format.formatters.plaintext;
 					}
 					break;
 				
 				case "function":
-					config.formatter = formatter;
+					formatterFunc = formatter;
 					break;
 				
 				default:
-					config.formatter = Format.formatters.plaintext;
+					formatterFunc = Format.formatters.plaintext;
 					break;
 			}
 			
-			return config;
+			return formatterFunc;
 		}
 		
 		cellRendered(cell){
@@ -17105,7 +17355,7 @@
 			var formatter, params, onRendered, mockCell;
 			
 			if(column.definition.titleFormatter){
-				formatter = this.getFormatter(column.definition.titleFormatter);
+				formatter = this.lookupFormatter(column.definition.titleFormatter);
 				
 				onRendered = (callback) => {
 					column.titleFormatterRendered = callback;
@@ -17205,29 +17455,6 @@
 			return value === null || typeof value === "undefined" || value === "" ? "&nbsp;" : value;
 		}
 		
-		//get formatter for cell
-		getFormatter(formatter){
-			switch(typeof formatter){
-				case "string":
-					if(Format.formatters[formatter]){
-						formatter = Format.formatters[formatter];
-					}else {
-						console.warn("Formatter Error - No such formatter found: ", formatter);
-						formatter = Format.formatters.plaintext;
-					}
-					break;
-				
-				case "function":
-				//Custom formatter Function, do nothing
-					break;
-				
-				default:
-					formatter = Format.formatters.plaintext;
-					break;
-			}
-			
-			return formatter;
-		}
 	}
 
 	class FrozenColumns extends Module{
@@ -19543,11 +19770,12 @@
 		return input;
 	}
 
-	function xlsx(input, floop){
-		var workbook2 = XLSX.read(input);
-		var sheet = workbook2.Sheets[workbook2.SheetNames[0]];
+	function xlsx(input){
+		var XLSXLib = this.dependencyRegistry.lookup("XLSX"),
+		workbook2 = XLSXLib.read(input),
+		sheet = workbook2.Sheets[workbook2.SheetNames[0]];
 		
-		return XLSX.utils.sheet_to_json(sheet, {});
+		return XLSXLib.utils.sheet_to_json(sheet, {header: 1 });
 	}
 
 	var defaultImporters = {
@@ -19558,32 +19786,36 @@
 	};
 
 	class Import extends Module{
-
+		
 		static moduleName = "import";
-
+		
 		//load defaults
 		static importers = defaultImporters;
-	    
+		
 		constructor(table){
 			super(table);
-	        
+			
 			this.registerTableOption("importFormat");
 			this.registerTableOption("importReader", "text");
+			this.registerTableOption("importHeaderTransform");
+			this.registerTableOption("importValueTransform");
+			this.registerTableOption("importDataValidator");
+			this.registerTableOption("importFileValidator");
 		}
-	    
+		
 		initialize(){
 			this.registerTableFunction("import", this.importFromFile.bind(this));
-
+			
 			if(this.table.options.importFormat){
 				this.subscribe("data-loading", this.loadDataCheck.bind(this), 10);
 				this.subscribe("data-load", this.loadData.bind(this), 10);
 			}
 		}
-
+		
 		loadDataCheck(data){
 			return this.table.options.importFormat && (typeof data === "string" || (Array.isArray(data) && data.length && Array.isArray(data)));
 		}
-
+		
 		loadData(data, params, config, silent, previousData){
 			return this.importData(this.lookupImporter(), data)
 				.then(this.structureData.bind(this))
@@ -19592,84 +19824,99 @@
 					return Promise.reject(err);
 				});
 		}
-
+		
 		lookupImporter(importFormat){
 			var importer;
-	        
+			
 			if(!importFormat){
 				importFormat = this.table.options.importFormat;
 			}
-	        
+			
 			if(typeof importFormat === "string"){
 				importer = Import.importers[importFormat];
 			}else {
 				importer = importFormat;
 			}
-
+			
 			if(!importer){
 				console.error("Import Error - Importer not found:", importFormat);
 			}
-	        
+			
 			return importer;
 		}
-	    
+		
 		importFromFile(importFormat, extension, importReader){
 			var importer = this.lookupImporter(importFormat);
-	        
+			
 			if(importer){
 				return this.pickFile(extension, importReader)
 					.then(this.importData.bind(this, importer))
 					.then(this.structureData.bind(this))
+					.then(this.mutateData.bind(this))
+					.then(this.validateData.bind(this))
 					.then(this.setData.bind(this))
 					.catch((err) => {
 						this.dispatch("import-error", err);
 						this.dispatchExternal("importError", err);
-
+						
 						console.error("Import Error:", err || "Unable to import file");
+						
+						this.table.dataLoader.alertError();
+
+						setTimeout(() => {
+							this.table.dataLoader.clearAlert();
+						}, 3000);
+						
 						return Promise.reject(err);
 					});
 			}
 		}
-	    
+		
 		pickFile(extensions, importReader){
 			return new Promise((resolve, reject) => {
 				var input = document.createElement("input");
 				input.type = "file";
 				input.accept = extensions;
-	            
+				
 				input.addEventListener("change", (e) => {
 					var file = input.files[0],
-					reader = new FileReader();
+					reader = new FileReader(),
+					valid = this.validateFile(file);
 
-					this.dispatch("import-importing", input.files);
-					this.dispatchExternal("importImporting", input.files);
-	                
-					switch(importReader || this.table.options.importReader){
-						case "buffer":
-							reader.readAsArrayBuffer(file);
-							break;
-
-						case "binary":
-							reader.readAsBinaryString(file);
-							break;
-
-						case "url":
-							reader.readAsDataURL(file);
-							break;
-
-						case "text":
-						default:
-							reader.readAsText(file);
+					if(valid === true){
+					
+						this.dispatch("import-importing", input.files);
+						this.dispatchExternal("importImporting", input.files);
+					
+						switch(importReader || this.table.options.importReader){
+							case "buffer":
+								reader.readAsArrayBuffer(file);
+								break;
+							
+							case "binary":
+								reader.readAsBinaryString(file);
+								break;
+							
+							case "url":
+								reader.readAsDataURL(file);
+								break;
+							
+							case "text":
+							default:
+								reader.readAsText(file);
+						}
+						
+						reader.onload = (e) => {
+							resolve(reader.result);
+						};
+						
+						reader.onerror = (e) => {
+							console.warn("File Load Error - Unable to read file");
+							reject(e);
+						};
+					}else {
+						reject(valid);
 					}
-	                  
-					reader.onload = (e) => {
-						resolve(reader.result);
-					};
-	                
-					reader.onerror = (e) => {
-						console.warn("File Load Error - Unable to read file");
-						reject();
-					};
 				});
 				
 				this.dispatch("import-choose");
@@ -19677,81 +19924,162 @@
 				input.click();
 			});
 		}
-	    
+		
 		importData(importer, fileContents){
-			var data = importer.call(this.table, fileContents);
-	        
-			if(data instanceof Promise){
-				return data;
-			}else {
-				return data ? Promise.resolve(data) : Promise.reject();
-			}
+			var data;
+			
+			this.table.dataLoader.alertLoader();
+			
+			return new Promise((resolve, reject) => {
+				setTimeout(() => {
+					data = importer.call(this.table, fileContents);
+					
+					if(data instanceof Promise){
+						resolve(data);
+					}else {
+						data ? resolve(data) : reject();
+					}
+				}, 10);
+			});
 		}
-
+		
 		structureData(parsedData){
 			var data = [];
-	        
+			
 			if(Array.isArray(parsedData) && parsedData.length && Array.isArray(parsedData[0])){
 				if(this.table.options.autoColumns){
 					data = this.structureArrayToObject(parsedData);
 				}else {
 					data = this.structureArrayToColumns(parsedData);
 				}
-
+				
 				return data;
 			}else {
 				return parsedData;
 			}
 		}
+		
+		mutateData(data){
+			var output = [];
+			
+			if(Array.isArray(data)){
+				data.forEach((row) => {
+					output.push(this.table.modules.mutator.transformRow(row, "import"));
+				});
+			}else {
+				output = data;
+			}
+			
+			return output;
+		}
+		
+		transformHeader(headers){
+			var output = [];
+			
+			if(this.table.options.importHeaderTransform){
+				headers.forEach((item) => {
+					output.push(this.table.options.importHeaderTransform.call(this.table, item, headers));
+				});
+			}else {
+				return headers;
+			}
+			
+			return output;
+		}
+		
+		transformData(row){
+			var output = [];
 
+			if(this.table.options.importValueTransform){
+				row.forEach((item) => {
+					output.push(this.table.options.importValueTransform.call(this.table, item, row));
+				});
+			}else {
+				return row;
+			}
+			
+			return output;
+		}
+		
 		structureArrayToObject(parsedData){
-			var columns = parsedData.shift();
-
+			var columns = this.transformHeader(parsedData.shift());	
+			
 			var data = parsedData.map((values) => {
 				var row = {};
 
+				values = this.transformData(values);
+				
 				columns.forEach((key, i) => {
 					row[key] = values[i];
 				});
-
+				
 				return row;
 			});
-
+			
 			return data;
 		}
-
+		
 		structureArrayToColumns(parsedData){
 			var data = [],
+			firstRow = this.transformHeader(parsedData[0]),
 			columns = this.table.getColumns();
-
+			
 			//remove first row if it is the column names
-			if(columns[0] && parsedData[0][0]){
-				if(columns[0].getDefinition().title === parsedData[0][0]){
+			if(columns[0] && firstRow[0]){
+				if(columns[0].getDefinition().title === firstRow[0]){
 					parsedData.shift();
 				}
 			}
-	        
+			
 			//convert row arrays to objects
 			parsedData.forEach((rowData) => {
 				var row = {};
 
+				rowData = this.transformData(rowData);
+				
 				rowData.forEach((value, index) => {
 					var column = columns[index];
-
+					
 					if(column){
 						row[column.getField()] = value;
 					}
 				});
-
+				
 				data.push(row);
 			});
+			
+			return data;
+		}
+
+		validateFile(file){
+			if(this.table.options.importFileValidator){
+				return this.table.options.importFileValidator.call(this.table, file);
+			}
+
+			return true;
+		}
+
+		validateData(data){
+			var result;
+
+			if(this.table.options.importDataValidator){
+				result = this.table.options.importDataValidator.call(this.table, data);
+
+				if(result === true){
+					return data;
+				}else {
+					return Promise.reject(result);
+				}
+			}
 
 			return data;
 		}
-	    
+		
 		setData(data){
 			this.dispatch("import-imported", data);
 			this.dispatchExternal("importImported", data);
+			
+			this.table.dataLoader.clearAlert();
 			
 			return this.table.setData(data);
 		}
@@ -21617,7 +21945,7 @@
 		constructor(table){
 			super(table);
 
-			this.allowedTypes = ["", "data", "edit", "clipboard"]; //list of mutation types
+			this.allowedTypes = ["", "data", "edit", "clipboard", "import"]; //list of mutation types
 			this.enabled = true;
 
 			this.registerColumnOption("mutator");
@@ -21628,6 +21956,8 @@
 			this.registerColumnOption("mutatorEditParams");
 			this.registerColumnOption("mutatorClipboard");
 			this.registerColumnOption("mutatorClipboardParams");
+			this.registerColumnOption("mutatorImport");
+			this.registerColumnOption("mutatorImportParams");
 			this.registerColumnOption("mutateLink");
 		}
 
@@ -21696,6 +22026,8 @@
 		transformRow(data, type, updatedData){
 			var key = "mutator" + (type.charAt(0).toUpperCase() + type.slice(1)),
 			value;
+
+			// console.log("key", key)
 
 			if(this.enabled){
 
@@ -21885,6 +22217,7 @@
 			// this.registerTableOption("paginationDataSent", {}); //pagination data sent to the server
 			// this.registerTableOption("paginationDataReceived", {}); //pagination data received from the server
 			this.registerTableOption("paginationAddRow", "page"); //add rows on table or page
+			this.registerTableOption("paginationOutOfRange", false); //reset the current page when the last page < this.page, values: false|function|any value accepted by setPage()
 			
 			this.registerTableOption("progressiveLoad", false); //progressive loading
 			this.registerTableOption("progressiveLoadDelay", 0); //delay between requests
@@ -22642,7 +22975,7 @@
 		}
 		
 		_parseRemoteData(data){
-			var margin;
+			var margin, paginationOutOfRange;
 			
 			if(typeof data.last_page === "undefined"){
 				console.warn("Remote Pagination Error - Server response missing '" + (this.options("dataReceiveParams").last_page || "last_page") + "' property");
@@ -22689,6 +23022,17 @@
 					
 					return false;
 				}else {
+
+					if(this.page > this.max){
+						console.warn( "Remote Pagination Error - Server returned last page value lower than the current page" );
+
+						paginationOutOfRange = this.options('paginationOutOfRange');
+
+						if(paginationOutOfRange){
+							return this.setPage(typeof paginationOutOfRange === 'function' ? paginationOutOfRange.call(this, this.page, this.max) :	paginationOutOfRange);
+						}
+					}
+
 					// left = this.table.rowManager.scrollLeft;
 					this.dispatchExternal("pageLoaded",  this.getPage());
 					// this.table.rowManager.scrollHorizontal(left);
@@ -26380,8 +26724,8 @@
 			this.subscribe("edit-editor-clear", this.finishEditingCell.bind(this));
 			this.subscribe("edit-blur", this.restoreFocus.bind(this));
 			
-			this.subscribe("keybinding-nav-prev", this.keyNavigate.bind(this, "prev"));
-			this.subscribe("keybinding-nav-next", this.keyNavigate.bind(this, "next"));
+			this.subscribe("keybinding-nav-prev", this.keyNavigate.bind(this, "left"));
+			this.subscribe("keybinding-nav-next", this.keyNavigate.bind(this, "right"));
 			this.subscribe("keybinding-nav-left", this.keyNavigate.bind(this, "left"));
 			this.subscribe("keybinding-nav-right", this.keyNavigate.bind(this, "right"));
 			this.subscribe("keybinding-nav-up", this.keyNavigate.bind(this, "up"));
@@ -26395,12 +26739,7 @@
 				console.warn("Using column headerSort with selectableRangeColumns option may result in unpredictable behavior. Consider using headerSortClickElement: 'icon'.");
 			}
 			
-			if (column.modules.edit) {
-				// Block editor from taking action so we can trigger edit by
-				// double clicking.
-				// column.modules.edit.blocked = true;
-				column.modules.edit.navigationBlocked = true;
-			}
+			if (column.modules.edit) ;
 		}
 		
 		updateHeaderColumn(){
@@ -26655,32 +26994,14 @@
 		///////     Navigation      ///////
 		///////////////////////////////////
 		
-		keyNavigate(dir, e, jump = false, expand = false){
-			if(this.table.modules.edit && this.table.modules.edit.currentCell){
-				if(dir === 'next' || dir === 'prev'){
-					// Cancel edit and move to the next cell if editing
-					this.table.modules.edit.currentCell.getComponent().cancelEdit();
-				}else {
-					// Prevent navigating while editing except for next/prev
-					return false;
-				}
-			}
-
-			if (dir === 'prev') {
-				dir = 'left';
-			} else if (dir === 'next') {
-				dir = 'right';
-			}
-			
-			this.navigate(jump, expand, dir);
-
-			// Trap keyboard events here to avoid triggering keybindings outside of 
-			// tabulator. E.g. Pressing arrow can trigger page scrolling.
+		keyNavigate(dir, e){
+			if(this.navigate(false, false, dir));
 			e.preventDefault();
 		}
 		
 		keyNavigateRange(e, dir, jump, expand){
-			this.keyNavigate(dir, e, jump, expand);
+			if(this.navigate(jump, expand, dir));
+			e.preventDefault();
 		}
 		
 		navigate(jump, expand, dir) {
@@ -26788,7 +27109,7 @@
 					}
 				}
 
-				if(!(columnRect.left >= columnManagerRect.left + this.rowHeaderWidth && columnRect.right <= columnManagerRect.right)){
+				if(!(columnRect.left >= columnManagerRect.left + this.getRowHeaderWidth() && columnRect.right <= columnManagerRect.right)){
 					if(row.getElement().parentNode && column.getElement().parentNode){
 						// Use faster autoScroll when the elements are on the DOM
 						this.autoScroll(range, row.getElement(), column.getElement());
@@ -26984,7 +27305,7 @@
 			};
 			
 			view = {
-				left: tableHolder.scrollLeft + this.rowHeaderWidth,
+				left: tableHolder.scrollLeft + this.getRowHeaderWidth(),
 				right: Math.ceil(tableHolder.scrollLeft + tableHolder.clientWidth),
 				top: tableHolder.scrollTop,
 				bottom:	tableHolder.scrollTop +	tableHolder.offsetHeight - this.table.rowManager.scrollbarWidth,
@@ -26996,9 +27317,9 @@
 			
 			if (!withinHorizontalView) {
 				if (rect.left < view.left) {
-					tableHolder.scrollLeft = rect.left - this.rowHeaderWidth;
+					tableHolder.scrollLeft = rect.left - this.getRowHeaderWidth();
 				} else if (rect.right > view.right) {
-					tableHolder.scrollLeft = Math.min(rect.right - tableHolder.clientWidth, rect.left - this.rowHeaderWidth);
+					tableHolder.scrollLeft = Math.min(rect.right - tableHolder.clientWidth, rect.left - this.getRowHeaderWidth());
 				}
 			}
 			
@@ -27211,15 +27532,15 @@
 			return component ? this.activeRange.getColumns().map((col) => col.getComponent()) : this.activeRange.getColumns();
 		}
 
-		isEmpty(value) {
-			return value === null || value === undefined || value === "";
-		}
-
-		get rowHeaderWidth(){
+		getRowHeaderWidth(){
 			if(!this.rowHeader){
 				return 0;
 			}
 			return this.rowHeader.getElement().offsetWidth;
+		}
+
+		isEmpty(value) {
+			return value === null || value === undefined || value === "";
 		}
 	}
 
@@ -27301,7 +27622,7 @@
 
 	//sort datetime
 	function datetime(a, b, aRow, bRow, column, dir, params){
-		var DT = window.DateTime || luxon.DateTime;
+		var DT = this.table.dependencyRegistry.lookup(["luxon", "DateTime"], "DateTime");
 		var format = params.format || "dd/MM/yyyy HH:mm:ss",
 		alignEmptyValues = params.alignEmptyValues,
 		emptyAlign = 0;
@@ -27374,10 +27695,28 @@
 	function array(a, b, aRow, bRow, column, dir, params){
 		var type = params.type || "length",
 		alignEmptyValues = params.alignEmptyValues,
-		emptyAlign = 0;
+		emptyAlign = 0,
+		table = this.table,
+		valueMap;
+
+		if(params.valueMap){
+			if(typeof params.valueMap === "string"){
+				valueMap = function(value){
+					return value.map((item) => {
+						return Helpers.retrieveNestedData(table.options.nestedFieldSeparator, params.valueMap, item);
+					});
+				};
+			}else {
+				valueMap = params.valueMap;
+			}
+		}
 
 		function calc(value){
 			var result;
+			
+			if(valueMap){
+				value = valueMap(value);
+			}
 
 			switch(type){
 				case "length":
@@ -27403,6 +27742,10 @@
 						return c + d;
 					}) / value.length;
 					break;
+
+				case "string":
+					result = value.join("");
+					break;
 			}
 
 			return result;
@@ -27414,7 +27757,11 @@
 		}else if(!Array.isArray(b)){
 			emptyAlign = 1;
 		}else {
-			return calc(b) - calc(a);
+			if(type === "string"){
+				return String(calc(a)).toLowerCase().localeCompare(String(calc(b)).toLowerCase());
+			}else {
+				return calc(b) - calc(a);
+			}
 		}
 
 		//fix empty values in position
@@ -27810,7 +28157,7 @@
 							break;
 						
 						default:
-							if(!isNaN(Number(value)) && value !== ""){
+							if(!isNaN(value) && value !== ""){
 								sorter = "number";
 							}else {
 								if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
