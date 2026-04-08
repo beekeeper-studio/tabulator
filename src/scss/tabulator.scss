@@ -1364,17 +1364,186 @@ $rangeHeaderTextHighlightBackground: #000000 !default; //header text color when 
 		&.tabulator-edit-list-group-level-2{
 			padding-left:12px;
 		}
-		
+
 		&.tabulator-edit-list-group-level-3{
 			padding-left:20px;
 		}
-		
+
 		&.tabulator-edit-list-group-level-4{
 			padding-left:28px;
 		}
-		
+
 		&.tabulator-edit-list-group-level-5{
 			padding-left:36px;
+		}
+	}
+}
+
+.tabulator-datepicker-btn{
+	position:fixed;
+	z-index:10000;
+	display:flex;
+	align-items:center;
+	justify-content:center;
+	padding:0;
+	margin:0;
+	border:none;
+	background:$headerBackgroundColor;
+	border:1px solid $headerBorderColor;
+	cursor:pointer;
+	color:$headerTextColor;
+	box-sizing:border-box;
+
+	&.tabulator-datepicker-btn-right{
+		border-radius:0 3px 3px 0;
+	}
+
+	&.tabulator-datepicker-btn-below{
+		border-radius:0 0 3px 3px;
+	}
+
+	&.tabulator-datepicker-btn-above{
+		border-radius:3px 3px 0 0;
+	}
+
+	@media (hover:hover) and (pointer:fine){
+		&:hover{
+			color:$editBoxColor;
+			background:color.adjust($headerBackgroundColor, $lightness: 5%);
+		}
+	}
+}
+
+.tabulator-datepicker-calendar{
+	position:fixed;
+	z-index:10000;
+	padding:8px;
+	font-size:$textSize;
+	color:$headerTextColor;
+	width:240px;
+	box-sizing:border-box;
+	background:$headerBackgroundColor;
+	border:1px solid $headerBorderColor;
+	border-radius:4px;
+	box-shadow:0 0 5px 0 rgba(0, 0, 0, .2);
+
+	.tabulator-datepicker-header{
+		display:flex;
+		justify-content:space-between;
+		align-items:center;
+		margin-bottom:8px;
+
+		.tabulator-datepicker-nav-btn{
+			background:none;
+			border:none;
+			cursor:pointer;
+			padding:2px 6px;
+			font-size:12px;
+			color:$headerTextColor;
+			border-radius:3px;
+
+			@media (hover:hover) and (pointer:fine){
+				&:hover{
+					background:color.adjust($headerBackgroundColor, $lightness: 5%);
+				}
+			}
+		}
+
+		.tabulator-datepicker-title{
+			font-weight:bold;
+			font-size:$textSize;
+
+			.tabulator-datepicker-year-select{
+				font-weight:bold;
+				font-size:$textSize;
+				font-family:inherit;
+				border:none;
+				background:transparent;
+				color:inherit;
+				cursor:pointer;
+				padding:0 2px;
+				outline:none;
+			}
+		}
+	}
+
+	.tabulator-datepicker-day-names{
+		display:grid;
+		grid-template-columns:repeat(7, 1fr);
+		text-align:center;
+		margin-bottom:4px;
+
+		.tabulator-datepicker-day-name{
+			font-size:11px;
+			font-weight:bold;
+			color:$headerTextColor;
+			opacity:0.7;
+			padding:2px 0;
+		}
+	}
+
+	.tabulator-datepicker-grid{
+		display:grid;
+		grid-template-columns:repeat(7, 1fr);
+		text-align:center;
+
+		.tabulator-datepicker-day{
+			padding:4px 2px;
+			border-radius:3px;
+			color:$headerTextColor;
+
+			&:not(.tabulator-datepicker-day-empty):not(.tabulator-datepicker-day-disabled){
+				cursor:pointer;
+
+				@media (hover:hover) and (pointer:fine){
+					&:hover{
+						background:$editBoxColor;
+						color:#fff;
+					}
+				}
+			}
+
+			&.tabulator-datepicker-day-today{
+				font-weight:bold;
+				box-shadow:inset 0 0 0 1px $editBoxColor;
+			}
+
+			&.tabulator-datepicker-day-selected{
+				background:$editBoxColor;
+				color:#fff;
+			}
+
+			&.tabulator-datepicker-day-disabled{
+				opacity:0.3;
+				cursor:default;
+			}
+		}
+	}
+
+	.tabulator-datepicker-footer{
+		display:flex;
+		justify-content:center;
+		gap:8px;
+		margin-top:8px;
+		padding-top:8px;
+		border-top:1px solid $headerBorderColor;
+
+		.tabulator-datepicker-today-btn,
+		.tabulator-datepicker-clear-btn{
+			background:none;
+			border:1px solid $headerBorderColor;
+			border-radius:3px;
+			cursor:pointer;
+			padding:3px 10px;
+			font-size:12px;
+			color:$headerTextColor;
+
+			@media (hover:hover) and (pointer:fine){
+				&:hover{
+					background:$editBoxColor;
+					color:#fff;
+				}
+			}
 		}
 	}
 }

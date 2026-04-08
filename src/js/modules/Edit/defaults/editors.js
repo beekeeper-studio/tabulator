@@ -10,6 +10,7 @@ import star from './editors/star.js';
 import progress from './editors/progress.js';
 import tickCross from './editors/tickCross.js';
 import adaptable from './editors/adaptable.js';
+import datepicker from './editors/datepicker.js';
 
 export default {
 	input:input,
@@ -24,4 +25,5 @@ export default {
 	progress:progress,
 	tickCross:tickCross,
 	adaptable:adaptable,
+	datepicker:datepicker,
 };
