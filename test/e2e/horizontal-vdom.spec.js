@@ -53,11 +53,10 @@ test.describe("Horizontal vDOM scroll sync", () => {
 		await page.waitForTimeout(300);
 	});
 
-	test("header.scrollLeft tracks body.scrollLeft when scrolling left through fitData-resized columns", async ({ page }) => {
+	test("column headers stay aligned with body cells when scrolling left through fitData-resized columns", async ({ page }) => {
 		const drift = await page.evaluate(async () => {
 			const tableEl = document.querySelector("#test-table");
 			const body = tableEl.querySelector(".tabulator-tableholder");
-			const headerContents = tableEl.querySelector(".tabulator-header-contents");
 
 			// Push the body to its rightmost scroll position so addColRight
 			// has populated the right end of the column set.
@@ -65,24 +64,44 @@ test.describe("Horizontal vDOM scroll sync", () => {
 			body.dispatchEvent(new Event("scroll"));
 			await new Promise((r) => requestAnimationFrame(() => r(null)));
 
-			// Now scroll back to the left, sampling the header / body
-			// scrollLeft after each synchronous scroll handler returns.
+			function visibleAlignmentMismatches() {
+				const out = [];
+				const cells = tableEl.querySelectorAll(
+					".tabulator-row:first-child .tabulator-cell"
+				);
+				cells.forEach((cell) => {
+					const field = cell.getAttribute("tabulator-field");
+					if (!field) return;
+					const headerEl = tableEl.querySelector(
+						'.tabulator-col[tabulator-field="' + field + '"]'
+					);
+					if (!headerEl) return;
+					const cellLeft = cell.getBoundingClientRect().left;
+					const headerLeft = headerEl.getBoundingClientRect().left;
+					if (Math.abs(cellLeft - headerLeft) > 0.5) {
+						out.push({ field, cellLeft, headerLeft, diff: +(cellLeft - headerLeft).toFixed(2) });
+					}
+				});
+				return out;
+			}
+
+			// Step left in small increments and verify every visible body cell
+			// is horizontally aligned with the column header for the same field.
 			const samples = [];
 			for (let target = body.scrollLeft - 1; target >= 0; target -= 7) {
 				body.scrollLeft = target;
 				body.dispatchEvent(new Event("scroll"));
-				samples.push({
-					target,
-					body: body.scrollLeft,
-					header: headerContents.scrollLeft,
-				});
-				if (samples.length > 200) break;
+				const mismatches = visibleAlignmentMismatches();
+				if (mismatches.length) {
+					samples.push({ target, body: body.scrollLeft, mismatches });
+				}
+				if (samples.length > 5) break;
 			}
-			return samples.filter((s) => s.body !== s.header);
+			return samples;
 		});
 
 		if (drift.length) {
-			console.log("DRIFT (first 5):", JSON.stringify(drift.slice(0, 5), null, 2));
+			console.log("DRIFT (first 3):", JSON.stringify(drift.slice(0, 3), null, 2));
 		}
 		expect(drift).toEqual([]);
 	});

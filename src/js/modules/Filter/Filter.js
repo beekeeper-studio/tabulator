@@ -428,7 +428,7 @@ export default class Filter extends Module{
 				});
 
 				editorElement.addEventListener("focus", (e) => {
-					var left = this.table.columnManager.contentsElement.scrollLeft;
+					var left = this.table.columnManager.scrollLeft;
 
 					var headerPos = this.table.rowManager.element.scrollLeft;
 

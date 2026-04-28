@@ -57,7 +57,7 @@ export default class MoveColumns extends Module{
 			
 			config.mousemove = function(e){
 				if(column.parent === self.moving.parent){
-					if((((self.touchMove ? e.touches[0].pageX : e.pageX) - Helpers.elOffset(colEl).left) + self.table.columnManager.contentsElement.scrollLeft) > (column.getWidth() / 2)){
+					if((((self.touchMove ? e.touches[0].pageX : e.pageX) - Helpers.elOffset(colEl).left) + self.table.columnManager.scrollLeft) > (column.getWidth() / 2)){
 						if(self.toCol !== column || !self.toColAfter){
 							colEl.parentNode.insertBefore(self.placeholderElement, colEl.nextSibling);
 							self.moveColumn(column, true);

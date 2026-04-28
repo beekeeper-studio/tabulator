@@ -129,20 +129,26 @@ export default class ColumnManager extends CoreFeature {
 	
 	//scroll horizontally to match table body
 	scrollHorizontal(left){
-		this.contentsElement.scrollLeft = left;
-		
+		// Translate the headers instead of scrolling a separate
+		// overflow container. This keeps the header in lockstep with
+		// the body's native scroll (including sub-pixel and momentum),
+		// rather than having a second scroll system that the body has
+		// to push values into asynchronously.
+		this.headersElement.style.transform = "translateX(" + (-left) + "px)";
+		this.contentsElement.scrollLeft = 0;
+
 		this.scrollLeft = left;
-		
+
 		this.renderer.scrollColumns(left);
 	}
-	
+
 	initializeScrollWheelWatcher(){
 		this.contentsElement.addEventListener("wheel", (e) => {
 			var left;
-			
+
 			if(e.deltaX){
-				left = this.contentsElement.scrollLeft + e.deltaX;
-				
+				left = this.scrollLeft + e.deltaX;
+
 				this.table.rowManager.scrollHorizontal(left);
 				this.table.columnManager.scrollHorizontal(left);
 			}

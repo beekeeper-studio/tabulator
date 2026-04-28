@@ -415,10 +415,11 @@ export default class VirtualDomHorizontal extends Renderer{
 					if(diff){
 						this.scrollLeft = this.elementVertical.scrollLeft = this.elementVertical.scrollLeft + diff;
 						this.vDomPadRight -= diff;
-						// Keep the header's horizontal scroll in lockstep with the
-						// body. Without this, the header is only re-synced via the
-						// body's queued scroll event, which leaves it visibly
-						// behind the body during a continuous left-scroll.
+						// Keep the header's horizontal position in lockstep with
+						// the body when we bump scrollLeft mid-handler. Without
+						// this, the header is only re-synced via the body's
+						// queued scroll event, which leaves it visibly behind
+						// the body during a continuous left-scroll.
 						this.table.columnManager.scrollHorizontal(this.scrollLeft);
 					}
 					
