@@ -411,10 +411,15 @@ export default class VirtualDomHorizontal extends Renderer{
 					}
 					
 					let diff = this.fitDataColActualWidthCheck(column);
-					
+
 					if(diff){
 						this.scrollLeft = this.elementVertical.scrollLeft = this.elementVertical.scrollLeft + diff;
 						this.vDomPadRight -= diff;
+						// Keep the header's horizontal scroll in lockstep with the
+						// body. Without this, the header is only re-synced via the
+						// body's queued scroll event, which leaves it visibly
+						// behind the body during a continuous left-scroll.
+						this.table.columnManager.scrollHorizontal(this.scrollLeft);
 					}
 					
 				}else{
