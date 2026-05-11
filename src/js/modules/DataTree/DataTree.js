@@ -195,11 +195,11 @@ export default class DataTree extends Module{
 
 		var children = isArray || (!isArray && typeof childArray === "object" && childArray !== null);
 
-		if(!children && row.modules.dataTree && row.modules.dataTree.branchEl){
+		if(!children && row.modules.dataTree && row.modules.dataTree.branchEl && row.modules.dataTree.branchEl.parentNode){
 			row.modules.dataTree.branchEl.parentNode.removeChild(row.modules.dataTree.branchEl);
 		}
 
-		if(!children && row.modules.dataTree && row.modules.dataTree.controlEl){
+		if(!children && row.modules.dataTree && row.modules.dataTree.controlEl && row.modules.dataTree.controlEl.parentNode){
 			row.modules.dataTree.controlEl.parentNode.removeChild(row.modules.dataTree.controlEl);
 		}
 

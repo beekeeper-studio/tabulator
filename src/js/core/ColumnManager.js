@@ -93,7 +93,6 @@ export default class ColumnManager extends CoreFeature {
 		var el = document.createElement("div");
 		
 		el.classList.add("tabulator-header-contents");
-		el.setAttribute("role", "rowgroup");
 		
 		return el;
 	}

@@ -61,6 +61,7 @@ export default class RowManager extends CoreFeature{
 		
 		el.classList.add("tabulator-table");
 		el.setAttribute("role", "rowgroup");
+		el.setAttribute("id", "tabulator-table-body");
 		
 		return el;
 	}
