@@ -2,6 +2,7 @@ This fork is based on version 6.3.1 with addition to these changes:
 - fix navigation conflict with SelectRange and Edit https://github.com/olifolkerd/tabulator/pull/4516
 - blur editor after pressing next/prev https://github.com/olifolkerd/tabulator/pull/4517
 - fix errors when handling BigInt https://github.com/beekeeper-studio/tabulator/commit/13f9a9b99a7fb7bb8359a6f991afbd874835e2fd
+- use Number.isNaN as it's more robust https://github.com/beekeeper-studio/tabulator/pull/3
 
 <p align="center">
   <img height="200" src="http://tabulator.info/images/logos/t_hollow.png">
