@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="UTF-8" />
+	<title>Tabulator Horizontal vDOM Test</title>
+	<link rel="stylesheet" href="../../dist/css/tabulator.min.css" />
+	<script src="../../dist/js/tabulator.js"></script>
+	<style>
+	body {
+		padding: 20px;
+		font-family: Arial, sans-serif;
+	}
+	#test-table {
+		width: 600px;
+		height: 300px;
+	}
+	#metrics {
+		margin-top: 12px;
+		font-family: monospace;
+		white-space: pre;
+	}
+	</style>
+</head>
+<body>
+	<h1>Tabulator Horizontal vDOM Test</h1>
+	<div id="test-table"></div>
+	<div id="metrics"></div>
+
+	<script>
+	document.addEventListener("DOMContentLoaded", function () {
+		// 100+ columns matches the scenario in github issue #3551.
+		const NUM_COLS = 120;
+		const columns = [];
+		for (let i = 0; i < NUM_COLS; i++) {
+			columns.push({ title: "Column header " + i, field: "c" + i });
+		}
+
+		const data = [];
+		for (let r = 0; r < 200; r++) {
+			const row = { id: r };
+			for (let i = 0; i < NUM_COLS; i++) {
+				// Vary text length per column so widths differ
+				row["c" + i] = "row " + r + " / col " + i + " " + "x".repeat((i * 3) % 11);
+			}
+			data.push(row);
+		}
+
+		window.testTable = new Tabulator("#test-table", {
+			data,
+			columns,
+			layout: "fitData",
+			renderHorizontal: "virtual",
+		});
+
+		window.measure = function() {
+			const tableEl = document.querySelector("#test-table");
+			const body = tableEl.querySelector(".tabulator-tableholder");
+			const headerContents = tableEl.querySelector(".tabulator-header-contents");
+			const headers = tableEl.querySelector(".tabulator-headers");
+			const tableInner = tableEl.querySelector(".tabulator-tableholder .tabulator-table");
+
+			return {
+				bodyScrollLeft: body.scrollLeft,
+				bodyScrollWidth: body.scrollWidth,
+				bodyClientWidth: body.clientWidth,
+				headerScrollLeft: headerContents.scrollLeft,
+				headerScrollWidth: headerContents.scrollWidth,
+				headerClientWidth: headerContents.clientWidth,
+				headersWidth: headers.offsetWidth,
+				bodyTableWidth: tableInner.offsetWidth,
+				bodyTablePadLeft: tableInner.style.paddingLeft,
+				bodyTablePadRight: tableInner.style.paddingRight,
+			};
+		};
+	});
+	</script>
+</body>
+</html>

@@ -2485,10 +2485,16 @@
 						}
 						
 						let diff = this.fitDataColActualWidthCheck(column);
-						
+
 						if(diff){
 							this.scrollLeft = this.elementVertical.scrollLeft = this.elementVertical.scrollLeft + diff;
 							this.vDomPadRight -= diff;
+							// Keep the header's horizontal position in lockstep with
+							// the body when we bump scrollLeft mid-handler. Without
+							// this, the header is only re-synced via the body's
+							// queued scroll event, which leaves it visibly behind
+							// the body during a continuous left-scroll.
+							this.table.columnManager.scrollHorizontal(this.scrollLeft);
 						}
 						
 					}else {
@@ -2780,20 +2786,26 @@
 		
 		//scroll horizontally to match table body
 		scrollHorizontal(left){
-			this.contentsElement.scrollLeft = left;
-			
+			// Translate the headers instead of scrolling a separate
+			// overflow container. This keeps the header in lockstep with
+			// the body's native scroll (including sub-pixel and momentum),
+			// rather than having a second scroll system that the body has
+			// to push values into asynchronously.
+			this.headersElement.style.transform = "translateX(" + (-left) + "px)";
+			this.contentsElement.scrollLeft = 0;
+
 			this.scrollLeft = left;
-			
+
 			this.renderer.scrollColumns(left);
 		}
-		
+
 		initializeScrollWheelWatcher(){
 			this.contentsElement.addEventListener("wheel", (e) => {
 				var left;
-				
+
 				if(e.deltaX){
-					left = this.contentsElement.scrollLeft + e.deltaX;
-					
+					left = this.scrollLeft + e.deltaX;
+
 					this.table.rowManager.scrollHorizontal(left);
 					this.table.columnManager.scrollHorizontal(left);
 				}
@@ -16123,7 +16135,7 @@
 					});
 
 					editorElement.addEventListener("focus", (e) => {
-						var left = this.table.columnManager.contentsElement.scrollLeft;
+						var left = this.table.columnManager.scrollLeft;
 
 						var headerPos = this.table.rowManager.element.scrollLeft;
 
@@ -21076,7 +21088,7 @@
 				
 				config.mousemove = function(e){
 					if(column.parent === self.moving.parent){
-						if((((self.touchMove ? e.touches[0].pageX : e.pageX) - Helpers.elOffset(colEl).left) + self.table.columnManager.contentsElement.scrollLeft) > (column.getWidth() / 2)){
+						if((((self.touchMove ? e.touches[0].pageX : e.pageX) - Helpers.elOffset(colEl).left) + self.table.columnManager.scrollLeft) > (column.getWidth() / 2)){
 							if(self.toCol !== column || !self.toColAfter){
 								colEl.parentNode.insertBefore(self.placeholderElement, colEl.nextSibling);
 								self.moveColumn(column, true);
