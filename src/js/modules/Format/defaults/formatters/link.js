@@ -1,3 +1,6 @@
+import Helpers from '../../../../core/tools/Helpers.js';
+
+
 export default function(cell, formatterParams, onRendered){
 	var value = cell.getValue(),
 	urlPrefix = formatterParams.urlPrefix || "",
@@ -15,7 +18,7 @@ export default function(cell, formatterParams, onRendered){
 		}
 
 		return value;
-	};
+	}
 
 	if(formatterParams.labelField){
 		data = cell.getData();
@@ -25,30 +28,31 @@ export default function(cell, formatterParams, onRendered){
 	if(formatterParams.label){
 		switch(typeof formatterParams.label){
 			case "string":
-			label = formatterParams.label;
-			break;
+				label = formatterParams.label;
+				break;
 
 			case "function":
-			label = formatterParams.label(cell);
-			break;
+				label = formatterParams.label(cell);
+				break;
 		}
 	}
 
 	if(label){
 		if(formatterParams.urlField){
 			data = cell.getData();
-			value = data[formatterParams.urlField];
+
+			value = Helpers.retrieveNestedData(this.table.options.nestedFieldSeparator, formatterParams.urlField, data);
 		}
 
 		if(formatterParams.url){
 			switch(typeof formatterParams.url){
 				case "string":
-				value = formatterParams.url;
-				break;
+					value = formatterParams.url;
+					break;
 
 				case "function":
-				value = formatterParams.url(cell);
-				break;
+					value = formatterParams.url(cell);
+					break;
 			}
 		}
 
@@ -75,4 +79,4 @@ export default function(cell, formatterParams, onRendered){
 	}else{
 		return "&nbsp;";
 	}
-};
+}

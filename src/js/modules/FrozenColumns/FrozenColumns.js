@@ -1,18 +1,16 @@
 import Module from '../../core/Module.js';
 
-class FrozenColumns extends Module{
+export default class FrozenColumns extends Module{
+
+	static moduleName = "frozenColumns";
 	
 	constructor(table){
 		super(table);
 		
 		this.leftColumns = [];
 		this.rightColumns = [];
-		this.leftMargin = 0;
-		this.rightMargin = 0;
-		this.rightPadding = 0;
 		this.initializationMode = "left";
 		this.active = false;
-		this.scrollEndTimer = false;
 		this.blocked = true;
 		
 		this.registerColumnOption("frozen");
@@ -23,13 +21,7 @@ class FrozenColumns extends Module{
 		this.initializationMode = "left";
 		this.leftColumns = [];
 		this.rightColumns = [];
-		this.leftMargin = 0;
-		this.rightMargin = 0;
-		this.rightMargin = 0;
 		this.active = false;
-		
-		this.table.columnManager.headersElement.style.marginLeft = 0;
-		this.table.columnManager.element.style.paddingRight = 0;
 	}
 	
 	initialize(){
@@ -38,16 +30,18 @@ class FrozenColumns extends Module{
 		this.subscribe("column-width", this.layout.bind(this));
 		this.subscribe("row-layout-after", this.layoutRow.bind(this));
 		this.subscribe("table-layout", this.layout.bind(this));
-		this.subscribe("scroll-horizontal", this.scrollHorizontal.bind(this));
-		this.subscribe("scroll-horizontal", this.scrollHorizontal.bind(this));
 		this.subscribe("columns-loading", this.reset.bind(this));
-
+		
 		this.subscribe("column-add", this.reinitializeColumns.bind(this));
-		this.subscribe("column-delete", this.reinitializeColumns.bind(this));
-
+		this.subscribe("column-deleted", this.reinitializeColumns.bind(this));
+		this.subscribe("column-hide", this.reinitializeColumns.bind(this));
+		this.subscribe("column-show", this.reinitializeColumns.bind(this));
+		this.subscribe("columns-loaded", this.reinitializeColumns.bind(this));
+		
 		this.subscribe("table-redraw", this.layout.bind(this));
 		this.subscribe("layout-refreshing", this.blockLayout.bind(this));
 		this.subscribe("layout-refreshed", this.unblockLayout.bind(this));
+		this.subscribe("scrollbar-vertical", this.adjustForScrollbar.bind(this));
 	}
 	
 	blockLayout(){
@@ -59,25 +53,25 @@ class FrozenColumns extends Module{
 	}
 	
 	layoutCell(cell){
-		this.layoutElement(cell.element, cell.column)
+		this.layoutElement(cell.element, cell.column);
 	}
-
+	
 	reinitializeColumns(){
 		this.reset();
-
+		
 		this.table.columnManager.columnsByIndex.forEach((column) => {
 			this.initializeColumn(column);
 		});
+
+		this.layout();
 	}
 	
 	//initialize specific column
 	initializeColumn(column){
 		var config = {margin:0, edge:false};
 		
-		if(!column.isGroup){
-			
+		if(!column.isGroup){			
 			if(this.frozenCheck(column)){
-				
 				config.position = this.initializationMode;
 				
 				if(this.initializationMode == "left"){
@@ -107,42 +101,6 @@ class FrozenColumns extends Module{
 		}
 	}
 	
-	//quick layout to smooth horizontal scrolling
-	scrollHorizontal(){
-		var rows;
-		
-		if(this.active){
-			clearTimeout(this.scrollEndTimer);
-
-			rows = this.table.rowManager.getVisibleRows();
-			
-			this.calcMargins(true);
-			
-			this.layoutColumnPosition();
-			
-			this.layoutCalcRows();
-			
-			rows.forEach((row) => {
-				if(row.type === "row"){
-					this.layoutRow(row);
-				}
-			});
-		}
-	}
-	
-	//calculate margins for rows
-	calcMargins(scroll){
-		
-		if(!scroll){
-			this.leftMargin = this._calcSpace(this.leftColumns, this.leftColumns.length) + "px";			
-			this.rightMargin = this._calcSpace(this.rightColumns, this.rightColumns.length) + "px";	
-			this.table.rowManager.tableElement.style.marginRight = this.rightMargin;
-		}
-	
-		//calculate right frozen columns
-		this.rightPadding = this.table.rowManager.element.clientWidth + this.table.columnManager.scrollLeft;
-	}
-	
 	//layout calculation rows
 	layoutCalcRows(){
 		if(this.table.modExists("columnCalcs")){
@@ -155,7 +113,7 @@ class FrozenColumns extends Module{
 			}
 			
 			if(this.table.modExists("groupRows")){
-				this.layoutGroupCalcs(this.table.modules.groupRows.getGroups())
+				this.layoutGroupCalcs(this.table.modules.groupRows.getGroups());
 			}
 		}
 	}
@@ -171,7 +129,7 @@ class FrozenColumns extends Module{
 			}
 			
 			if(group.groupList && group.groupList.length){
-				this.layoutGroupCalcs(group.groupList && group.groupList);
+				this.layoutGroupCalcs(group.groupList);
 			}
 		});
 	}
@@ -183,12 +141,10 @@ class FrozenColumns extends Module{
 		var leftMargin = 0;
 		var rightMargin = 0;
 		
-		this.table.columnManager.headersElement.style.marginLeft = this.leftMargin;
-		this.table.columnManager.element.style.paddingRight = this.rightMargin;
-
 		this.leftColumns.forEach((column, i) => {	
-			column.modules.frozen.margin = (leftMargin + this.table.columnManager.scrollLeft) + "px";
-
+			column.modules.frozen.marginValue = leftMargin;
+			column.modules.frozen.margin = column.modules.frozen.marginValue + "px";
+			
 			if(column.visible){
 				leftMargin += column.getWidth();
 			}
@@ -206,9 +162,8 @@ class FrozenColumns extends Module{
 					leftParents.push(parentEl);
 				}
 				
-				if(column.modules.frozen.edge){
-					parentEl.classList.add("tabulator-frozen-" + column.modules.frozen.position);
-				}
+				parentEl.classList.toggle("tabulator-frozen-left",  column.modules.frozen.edge && column.modules.frozen.position === "left");
+				parentEl.classList.toggle("tabulator-frozen-right", column.modules.frozen.edge && column.modules.frozen.position === "right");
 			}else{
 				this.layoutElement(column.getElement(), column);
 			}
@@ -221,19 +176,19 @@ class FrozenColumns extends Module{
 		});
 		
 		this.rightColumns.forEach((column, i) => {
-
+			
+			column.modules.frozen.marginValue = rightMargin;
+			column.modules.frozen.margin = column.modules.frozen.marginValue + "px";
+			
 			if(column.visible){
 				rightMargin += column.getWidth();
 			}
-
-			column.modules.frozen.margin = (this.rightPadding - rightMargin) + "px";
 			
 			if(i == this.rightColumns.length - 1){
 				column.modules.frozen.edge = true;
 			}else{
 				column.modules.frozen.edge = false;
 			}
-			
 			
 			if(column.parent.isGroup){
 				this.layoutElement(this.getColGroupParentElement(column), column);
@@ -254,42 +209,33 @@ class FrozenColumns extends Module{
 	}
 	
 	//layout columns appropriately
-	layout(){
-		var visibleRows = [],
-		otherRows = [];
-
+	layout(){	
 		if(this.active && !this.blocked){
-			//calculate row padding
-			this.calcMargins();
-
 			//calculate left columns
 			this.layoutColumnPosition();
-
-			visibleRows = this.table.rowManager.getVisibleRows();
-			otherRows = this.table.rowManager.getDisplayRows().filter(row => !visibleRows.includes(row));
-
-			otherRows.forEach((row) =>{
-				row.deinitialize();
-			});
-
-			visibleRows.forEach((row) =>{
-				if(row.type === "row"){
-					this.layoutRow(row);
-				}
-			});
+			
+			this.reinitializeRows();
 			
 			this.layoutCalcRows();
-			
-
 		}
 	}
 	
+	reinitializeRows(){
+		var visibleRows = this.table.rowManager.getVisibleRows(true);
+		var otherRows = this.table.rowManager.getRows().filter(row => !visibleRows.includes(row));
+		
+		otherRows.forEach((row) =>{
+			row.deinitialize();
+		});
+		
+		visibleRows.forEach((row) =>{
+			if(row.type === "row"){
+				this.layoutRow(row);
+			}
+		});
+	}
+	
 	layoutRow(row){
-		// console.trace("row")
-		var rowEl = row.getElement();
-		
-		rowEl.style.paddingLeft = this.leftMargin;
-		
 		if(this.table.options.layout === "fitDataFill" && this.rightColumns.length){
 			this.table.rowManager.getTableElement().style.minWidth = "calc(100% - " + this.rightMargin + ")";
 		}
@@ -312,17 +258,34 @@ class FrozenColumns extends Module{
 	}
 	
 	layoutElement(element, column){
+		var position;
 		
-		if(column.modules.frozen){
-			element.style.position = "absolute";
-			element.style.left = column.modules.frozen.margin;
-			
+		if(column.modules.frozen && element){
+			element.style.position = "sticky";
+
+			if(this.table.rtl){
+				position = column.modules.frozen.position === "left" ? "right" : "left";
+			}else{
+				position = column.modules.frozen.position;
+			}
+		
+			element.style[position] = column.modules.frozen.margin;
+
 			element.classList.add("tabulator-frozen");
 			
-			if(column.modules.frozen.edge){
-				element.classList.add("tabulator-frozen-" + column.modules.frozen.position);
-			}
+			element.classList.toggle("tabulator-frozen-left",  column.modules.frozen.edge && column.modules.frozen.position === "left");
+			element.classList.toggle("tabulator-frozen-right", column.modules.frozen.edge && column.modules.frozen.position === "right");
 		}
+	}
+
+	adjustForScrollbar(width){
+		if(this.rightColumns.length){
+			this.table.columnManager.getContentsElement().style.width = "calc(100% - " + width + "px)";
+		}
+	}
+
+	getFrozenColumns(){
+		return this.leftColumns.concat(this.rightColumns);
 	}
 	
 	_calcSpace(columns, index){
@@ -337,7 +300,3 @@ class FrozenColumns extends Module{
 		return width;
 	}
 }
-
-FrozenColumns.moduleName = "frozenColumns";
-
-export default FrozenColumns;

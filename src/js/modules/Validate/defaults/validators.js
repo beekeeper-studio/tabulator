@@ -4,8 +4,10 @@ export default {
 		if(value === "" || value === null || typeof value === "undefined"){
 			return true;
 		}
+
 		value = Number(value);
-		return typeof value === 'number' && isFinite(value) && Math.floor(value) === value;
+
+		return !isNaN(value) && isFinite(value) && Math.floor(value) === value;
 	},
 
 	//is float
@@ -13,8 +15,10 @@ export default {
 		if(value === "" || value === null || typeof value === "undefined"){
 			return true;
 		}
+		
 		value = Number(value);
-		return typeof value === 'number' && isFinite(value) && value % 1 !== 0;
+
+		return !isNaN(value) && isFinite(value) && value % 1 !== 0;
 	},
 
 	//must be a number
@@ -31,6 +35,17 @@ export default {
 			return true;
 		}
 		return isNaN(value);
+	},
+
+	//must be alphanumeric
+	alphanumeric: function(cell, value, parameters){
+		if(value === "" || value === null || typeof value === "undefined"){
+			return true;
+		}
+
+		var reg = new RegExp(/^[a-z0-9]+$/i);
+
+		return reg.test(value);
 	},
 
 	//maximum value
@@ -87,11 +102,12 @@ export default {
 		if(value === "" || value === null || typeof value === "undefined"){
 			return true;
 		}
+
 		if(typeof parameters == "string"){
 			parameters = parameters.split("|");
 		}
 
-		return value === "" || parameters.indexOf(value) > -1;
+		return parameters.indexOf(value) > -1;
 	},
 
 	//must match provided regex

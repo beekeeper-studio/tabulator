@@ -2,115 +2,122 @@ import maskInput from '../../inputMask.js';
 
 //resizable text area element
 export default function(cell, onRendered, success, cancel, editorParams){
-    var self = this,
-    cellValue = cell.getValue(),
-    vertNav = editorParams.verticalNavigation || "hybrid",
-    value = String(cellValue !== null && typeof cellValue !== "undefined"  ? cellValue : ""),
-    count = (value.match(/(?:\r\n|\r|\n)/g) || []).length + 1,
-    input = document.createElement("textarea"),
-    scrollHeight = 0;
+	var cellValue = cell.getValue(),
+	vertNav = editorParams.verticalNavigation || "hybrid",
+	value = String(cellValue !== null && typeof cellValue !== "undefined"  ? cellValue : ""),
+	input = document.createElement("textarea"),
+	scrollHeight = 0;
 
-    //create and style input
-    input.style.display = "block";
-    input.style.padding = "2px";
-    input.style.height = "100%";
-    input.style.width = "100%";
-    input.style.boxSizing = "border-box";
-    input.style.whiteSpace = "pre-wrap";
-    input.style.resize = "none";
+	//create and style input
+	input.style.display = "block";
+	input.style.padding = "2px";
+	input.style.height = "100%";
+	input.style.width = "100%";
+	input.style.boxSizing = "border-box";
+	input.style.whiteSpace = "pre-wrap";
+	input.style.resize = "none";
 
-    if(editorParams.elementAttributes && typeof editorParams.elementAttributes == "object"){
-        for (let key in editorParams.elementAttributes){
-            if(key.charAt(0) == "+"){
-                key = key.slice(1);
-                input.setAttribute(key, input.getAttribute(key) + editorParams.elementAttributes["+" + key]);
-            }else{
-                input.setAttribute(key, editorParams.elementAttributes[key]);
-            }
-        }
-    }
-
-    input.value = value;
-
-    onRendered(function(){
-        input.focus({preventScroll: true});
-        input.style.height = "100%";
-
-        input.scrollHeight;
-        input.style.height = input.scrollHeight + "px";
-        cell.getRow().normalizeHeight();
-
-        if(editorParams.selectContents){
-			input.select();
+	if(editorParams.elementAttributes && typeof editorParams.elementAttributes == "object"){
+		for (let key in editorParams.elementAttributes){
+			if(key.charAt(0) == "+"){
+				key = key.slice(1);
+				input.setAttribute(key, input.getAttribute(key) + editorParams.elementAttributes["+" + key]);
+			}else{
+				input.setAttribute(key, editorParams.elementAttributes[key]);
+			}
 		}
-    });
+	}
 
-    function onChange(e){
+	input.value = value;
 
-        if(((cellValue === null || typeof cellValue === "undefined") && input.value !== "") || input.value !== cellValue){
+	onRendered(function(){
+		if(cell.getType() === "cell"){
+			input.focus({preventScroll: true});
+			input.style.height = "100%";
 
-            if(success(input.value)){
-                cellValue = input.value; //persist value if successfully validated incase editor is used as header filter
-            }
+			input.scrollHeight;
+			input.style.height = input.scrollHeight + "px";
+			cell.getRow().normalizeHeight();
 
-            setTimeout(function(){
-                cell.getRow().normalizeHeight();
-            },300)
-        }else{
-            cancel();
-        }
-    }
+			if(editorParams.selectContents){
+				input.select();
+			}
+		}
+	});
 
-    //submit new value on blur or change
-    input.addEventListener("change", onChange);
-    input.addEventListener("blur", onChange);
+	function onChange(e){
 
-    input.addEventListener("keyup", function(){
+		if(((cellValue === null || typeof cellValue === "undefined") && input.value !== "") || input.value !== cellValue){
 
-        input.style.height = "";
+			if(success(input.value)){
+				cellValue = input.value; //persist value if successfully validated incase editor is used as header filter
+			}
 
-        var heightNow = input.scrollHeight;
+			setTimeout(function(){
+				cell.getRow().normalizeHeight();
+			},300);
+		}else{
+			cancel();
+		}
+	}
 
-        input.style.height = heightNow + "px";
+	//submit new value on blur or change
+	input.addEventListener("change", onChange);
+	input.addEventListener("blur", onChange);
 
-        if(heightNow != scrollHeight){
-            scrollHeight = heightNow;
-            cell.getRow().normalizeHeight();
-        }
-    });
+	input.addEventListener("keyup", function(){
 
-    input.addEventListener("keydown", function(e){
+		input.style.height = "";
 
-        switch(e.keyCode){
-            case 27:
-            cancel();
-            break;
+		var heightNow = input.scrollHeight;
 
-            case 38: //up arrow
-            if(vertNav == "editor" || (vertNav == "hybrid" && input.selectionStart)){
-                e.stopImmediatePropagation();
-                e.stopPropagation();
-            }
+		input.style.height = heightNow + "px";
 
-            break;
+		if(heightNow != scrollHeight){
+			scrollHeight = heightNow;
+			cell.getRow().normalizeHeight();
+		}
+	});
 
-            case 40: //down arrow
-            if(vertNav == "editor" || (vertNav == "hybrid" && input.selectionStart !== input.value.length)){
-                e.stopImmediatePropagation();
-                e.stopPropagation();
-            }
-            break;
+	input.addEventListener("keydown", function(e){
 
-            case 35:
-            case 36:
-            e.stopPropagation();
-            break;
-        }
-    });
+		switch(e.keyCode){
 
-    if(editorParams.mask){
-        maskInput(input, editorParams);
-    }
+			case 13:
+				if(e.shiftKey && editorParams.shiftEnterSubmit){
+					onChange(e);
+				}
+				break;
 
-    return input;
-};
+			case 27:
+				cancel();
+				break;
+
+			case 38: //up arrow
+				if(vertNav == "editor" || (vertNav == "hybrid" && input.selectionStart)){
+					e.stopImmediatePropagation();
+					e.stopPropagation();
+				}
+
+				break;
+
+			case 40: //down arrow
+				if(vertNav == "editor" || (vertNav == "hybrid" && input.selectionStart !== input.value.length)){
+					e.stopImmediatePropagation();
+					e.stopPropagation();
+				}
+				break;
+
+			case 35:
+			case 36:
+				e.stopPropagation();
+				break;
+		}
+	});
+
+	if(editorParams.mask){
+		maskInput(input, editorParams);
+	}
+
+	return input;
+}

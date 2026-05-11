@@ -4,8 +4,16 @@ import Cell from '../../core/cell/Cell.js';
 
 import defaultUndoers from './defaults/undoers.js';
 import defaultRedoers from './defaults/redoers.js';
+import extensions from './extensions/extensions.js';
 
-class History extends Module{
+export default class History extends Module{
+
+	static moduleName = "history";
+	static moduleExtensions = extensions;
+
+	//load defaults
+	static undoers = defaultUndoers;
+	static redoers = defaultRedoers;
 
 	constructor(table){
 		super(table);
@@ -34,7 +42,7 @@ class History extends Module{
 	}
 
 	rowMoved(from, to, after){
-		this.action("rowMove", from, {posFrom:this.table.rowManager.getRowPosition(from), posTo:this.table.rowManager.getRowPosition(to), to:to, after:after});
+		this.action("rowMove", from, {posFrom:from.getPosition(), posTo:to.getPosition(), to:to, after:after});
 	}
 
 	rowAdded(row, data, pos, index){
@@ -46,7 +54,7 @@ class History extends Module{
 
 		if(this.table.options.groupBy){
 
-			rows = row.getComponent().getGroup().rows
+			rows = row.getComponent().getGroup()._getSelf().rows;
 			index = rows.indexOf(row);
 
 			if(index){
@@ -119,7 +127,7 @@ class History extends Module{
 
 			return true;
 		}else{
-			console.warn("History Undo Error - No more history to undo");
+			console.warn(this.options("history") ? "History Undo Error - No more history to undo" : "History module not enabled");
 			return false;
 		}
 	}
@@ -137,7 +145,7 @@ class History extends Module{
 
 			return true;
 		}else{
-			console.warn("History Redo Error - No more history to redo");
+			console.warn(this.options("history") ? "History Redo Error - No more history to redo" : "History module not enabled");
 			return false;
 		}
 	}
@@ -162,11 +170,3 @@ class History extends Module{
 		});
 	}
 }
-
-History.moduleName = "history";
-
-//load defaults
-History.undoers = defaultUndoers;
-History.redoers = defaultRedoers;
-
-export default History;

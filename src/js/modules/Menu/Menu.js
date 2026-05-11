@@ -1,6 +1,8 @@
 import Module from '../../core/Module.js';
 
-class Menu extends Module{
+export default class Menu extends Module{
+
+	static moduleName = "menu";
 	
 	constructor(table){
 		super(table);
@@ -13,36 +15,38 @@ class Menu extends Module{
 		
 		this.columnSubscribers = {};
 		
-		this.registerTableOption("menuContainer", undefined); //deprecated
-
+		// this.registerTableOption("menuContainer", undefined); //deprecated
+		
 		this.registerTableOption("rowContextMenu", false);
 		this.registerTableOption("rowClickMenu", false);
+		this.registerTableOption("rowDblClickMenu", false);
 		this.registerTableOption("groupContextMenu", false);
 		this.registerTableOption("groupClickMenu", false);
+		this.registerTableOption("groupDblClickMenu", false);
 		
 		this.registerColumnOption("headerContextMenu");
 		this.registerColumnOption("headerClickMenu");
+		this.registerColumnOption("headerDblClickMenu");
 		this.registerColumnOption("headerMenu");
 		this.registerColumnOption("headerMenuIcon");
 		this.registerColumnOption("contextMenu");
 		this.registerColumnOption("clickMenu");
+		this.registerColumnOption("dblClickMenu");
 		
 	}
 	
 	initialize(){
-		this.deprecationCheck();
+		this.deprecatedOptionsCheck();
 		this.initializeRowWatchers();
 		this.initializeGroupWatchers();
 		
 		this.subscribe("column-init", this.initializeColumn.bind(this));
 	}
-
-	deprecationCheck(){
-		if(typeof this.table.options.menuContainer !== "undefined"){
-			console.warn("Use of the menuContainer option is now deprecated. Please use the popupContainer option instead");
-
-			this.table.options.popupContainer = this.table.options.menuContainer;
-		}
+	
+	deprecatedOptionsCheck(){
+		// if(!this.deprecationCheck("menuContainer", "popupContainer")){
+		// 	this.table.options.popupContainer = this.table.options.menuContainer;
+		// }
 	}	
 	
 	initializeRowWatchers(){
@@ -53,6 +57,10 @@ class Menu extends Module{
 		
 		if(this.table.options.rowClickMenu){
 			this.subscribe("row-click", this.loadMenuEvent.bind(this, this.table.options.rowClickMenu));
+		}
+		
+		if(this.table.options.rowDblClickMenu){
+			this.subscribe("row-dblclick", this.loadMenuEvent.bind(this, this.table.options.rowDblClickMenu));
 		}
 	}
 	
@@ -65,22 +73,30 @@ class Menu extends Module{
 		if(this.table.options.groupClickMenu){
 			this.subscribe("group-click", this.loadMenuEvent.bind(this, this.table.options.groupClickMenu));
 		}
+		
+		if(this.table.options.groupDblClickMenu){
+			this.subscribe("group-dblclick", this.loadMenuEvent.bind(this, this.table.options.groupDblClickMenu));
+		}
 	}
-	
+
 	initializeColumn(column){
-		var options = ["headerContextMenu", "headerClickMenu"],
-		def = column.definition;
+		var	def = column.definition;
 		
 		//handle column events
 		if(def.headerContextMenu && !this.columnSubscribers.headerContextMenu){
 			this.columnSubscribers.headerContextMenu = this.loadMenuTableColumnEvent.bind(this, "headerContextMenu");
 			this.subscribe("column-contextmenu", this.columnSubscribers.headerContextMenu);
-			this.table.on("headerTapHold", this.loadMenuTableColumnEvent.bind(this, "headerContextMenu"))
+			this.table.on("headerTapHold", this.loadMenuTableColumnEvent.bind(this, "headerContextMenu"));
 		}
 		
 		if(def.headerClickMenu && !this.columnSubscribers.headerClickMenu){
 			this.columnSubscribers.headerClickMenu = this.loadMenuTableColumnEvent.bind(this, "headerClickMenu");
 			this.subscribe("column-click", this.columnSubscribers.headerClickMenu);
+		}
+		
+		if(def.headerDblClickMenu && !this.columnSubscribers.headerDblClickMenu){
+			this.columnSubscribers.headerDblClickMenu = this.loadMenuTableColumnEvent.bind(this, "headerDblClickMenu");
+			this.subscribe("column-dblclick", this.columnSubscribers.headerDblClickMenu);
 		}
 		
 		if(def.headerMenu){
@@ -91,12 +107,17 @@ class Menu extends Module{
 		if(def.contextMenu && !this.columnSubscribers.contextMenu){
 			this.columnSubscribers.contextMenu = this.loadMenuTableCellEvent.bind(this, "contextMenu");
 			this.subscribe("cell-contextmenu", this.columnSubscribers.contextMenu);
-			this.table.on("cellTapHold", this.loadMenuTableCellEvent.bind(this, "contextMenu"))
+			this.table.on("cellTapHold", this.loadMenuTableCellEvent.bind(this, "contextMenu"));
 		}
 		
 		if(def.clickMenu && !this.columnSubscribers.clickMenu){
 			this.columnSubscribers.clickMenu = this.loadMenuTableCellEvent.bind(this, "clickMenu");
 			this.subscribe("cell-click", this.columnSubscribers.clickMenu);
+		}
+		
+		if(def.dblClickMenu && !this.columnSubscribers.dblClickMenu){
+			this.columnSubscribers.dblClickMenu = this.loadMenuTableCellEvent.bind(this, "dblClickMenu");
+			this.subscribe("cell-dblclick", this.columnSubscribers.dblClickMenu);
 		}
 	}
 	
@@ -106,12 +127,12 @@ class Menu extends Module{
 		
 		headerMenuEl = document.createElement("span");
 		headerMenuEl.classList.add("tabulator-header-popup-button");
-
+		
 		if(icon){
 			if(typeof icon === "function"){
 				icon = icon(column.getComponent());
 			}
-
+			
 			if(icon instanceof HTMLElement){
 				headerMenuEl.appendChild(icon);
 			}else{
@@ -188,7 +209,7 @@ class Menu extends Module{
 			}else{
 				this.nestedMenuBlock = setTimeout(() => {
 					this.nestedMenuBlock = false;
-				}, 100)
+				}, 100);
 			}
 			
 			if(this.rootPopup){
@@ -254,7 +275,9 @@ class Menu extends Module{
 		});
 		
 		menuEl.addEventListener("click", (e) => {
-			this.rootPopup.hide();
+			if(this.rootPopup){
+				this.rootPopup.hide();
+			}
 		});
 		
 		popup.show(parentEl || e);
@@ -264,18 +287,16 @@ class Menu extends Module{
 				this.rootPopup = null;
 				
 				if(this.currentComponent){
+					this.dispatch("menu-closed", menu, popup);
 					this.dispatchExternal("menuClosed", this.currentComponent.getComponent());
 					this.currentComponent = null;
 				}
 			});
-
+			
 			this.currentComponent = component;
-
-			this.dispatchExternal("menuOpened", component.getComponent())
+			
+			this.dispatch("menu-opened", menu, popup);
+			this.dispatchExternal("menuOpened", component.getComponent());
 		}
 	}
 }
-
-Menu.moduleName = "menu";
-
-export default Menu;

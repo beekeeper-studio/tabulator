@@ -13,7 +13,7 @@ export default class VirtualDomVertical extends Renderer{
 		this.vDomRowHeight = 20; //approximation of row heights for padding
 
 		this.vDomTop = 0; //hold position for first rendered row in the virtual DOM
-		this.vDomBottom = 0; //hold possition for last rendered row in the virtual DOM
+		this.vDomBottom = 0; //hold position for last rendered row in the virtual DOM
 
 		this.vDomScrollPosTop = 0; //last scroll position of the vDom top;
 		this.vDomScrollPosBottom = 0; //last scroll position of the vDom bottom;
@@ -44,7 +44,6 @@ export default class VirtualDomVertical extends Renderer{
 
 		element.style.paddingTop = "";
 		element.style.paddingBottom = "";
-		// element.style.minWidth = "";
 		element.style.minHeight = "";
 		element.style.display = "";
 		element.style.visibility = "";
@@ -98,7 +97,12 @@ export default class VirtualDomVertical extends Renderer{
 			callback();
 		}
 
-		this._virtualRenderFill((topRow === false ? this.rows.length - 1 : topRow), true, topOffset || 0);
+		if(this.rows().length){
+			this._virtualRenderFill((topRow === false ? this.rows.length - 1 : topRow), true, topOffset || 0);
+		}else{
+			this.clear();
+			this.table.rowManager.tableEmpty();
+		}
 
 		this.scrollColumns(left);
 	}
@@ -218,17 +222,27 @@ export default class VirtualDomVertical extends Renderer{
 	//////////////////////////////////////
 
 	//full virtual render
-	_virtualRenderFill(position, forceMove, offset){
+	_virtualRenderFill(position, forceMove, offset) {
 		var	element = this.tableElement,
 		holder = this.elementVertical,
 		topPad = 0,
 		rowsHeight = 0,
+		rowHeight = 0,
 		heightOccupied = 0,
 		topPadHeight = 0,
 		i = 0,
 		rows = this.rows(),
 		rowsCount = rows.length,
-		containerHeight = this.elementVertical.clientHeight;
+		index = 0,
+		row,
+		rowFragment,
+		renderedRows = [],
+		totalRowsRendered = 0,
+		rowsToRender = 0,
+		fixedHeight = this.table.rowManager.fixedHeight,
+		containerHeight = this.elementVertical.clientHeight, 
+		avgRowHeight = this.table.options.rowHeight, 
+		resized = true;
 
 		position = position || 0;
 
@@ -236,7 +250,7 @@ export default class VirtualDomVertical extends Renderer{
 
 		if(!position){
 			this.clear();
-		}else{
+		}else {
 			while(element.firstChild) element.removeChild(element.firstChild);
 
 			//check if position is too close to bottom of table
@@ -256,54 +270,102 @@ export default class VirtualDomVertical extends Renderer{
 
 		if(rowsCount && Helpers.elVisible(this.elementVertical)){
 			this.vDomTop = position;
-
 			this.vDomBottom = position -1;
 
-			while ((rowsHeight <= containerHeight + this.vDomWindowBuffer || i < this.vDomWindowMinTotalRows) && this.vDomBottom < rowsCount -1){
-				var index = this.vDomBottom + 1,
-				row = rows[index],
-				rowHeight = 0;
+			if(fixedHeight || this.table.options.maxHeight) {
+				if(avgRowHeight) {
+					rowsToRender = (containerHeight / avgRowHeight) + (this.vDomWindowBuffer / avgRowHeight);
+				}
+				rowsToRender = Math.max(this.vDomWindowMinTotalRows, Math.ceil(rowsToRender));
+			}
+			else {
+				rowsToRender = rowsCount;
+			}
 
-				this.styleRow(row, index);
+			while(((rowsToRender == rowsCount || rowsHeight <= containerHeight + this.vDomWindowBuffer) || totalRowsRendered < this.vDomWindowMinTotalRows) && this.vDomBottom < rowsCount -1) {
+				renderedRows = [];
+				rowFragment = document.createDocumentFragment();
 
-				element.appendChild(row.getElement());
+				i = 0;
 
-				row.initialize();
+				while ((i < rowsToRender) && this.vDomBottom < rowsCount -1) {	
+					index = this.vDomBottom + 1,
+					row = rows[index];
 
-				if(!row.heightInitialized){
-					row.normalizeHeight(true);
+					this.styleRow(row, index);
+
+					row.initialize(false, true);
+					if(!row.heightInitialized && !this.table.options.rowHeight){
+						row.clearCellHeight();
+					}
+
+					rowFragment.appendChild(row.getElement());
+					renderedRows.push(row);
+					this.vDomBottom ++;
+					i++;
 				}
 
-				rowHeight = row.getHeight();
-
-				if(i < topPad){
-					topPadHeight += rowHeight;
-				}else{
-					rowsHeight += rowHeight;
+				if(!renderedRows.length){
+					break;
 				}
 
-				if(rowHeight > this.vDomWindowBuffer){
-					this.vDomWindowBuffer = rowHeight * 2;
-				}
+				element.appendChild(rowFragment);
+				
+				// NOTE: The next 3 loops are separate on purpose
+				// This is to batch up the dom writes and reads which drastically improves performance 
 
-				this.vDomBottom ++;
-				i++;
+				renderedRows.forEach((row) => {
+					row.rendered();
+
+					if(!row.heightInitialized) {
+						row.calcHeight(true);
+					}
+				});
+
+				renderedRows.forEach((row) => {
+					if(!row.heightInitialized) {
+						row.setCellHeight();
+					}
+				});
+
+				renderedRows.forEach((row) => {
+					rowHeight = row.getHeight();
+					
+					if(totalRowsRendered < topPad){
+						topPadHeight += rowHeight;
+					}else {
+						rowsHeight += rowHeight;
+					}
+
+					if(rowHeight > this.vDomWindowBuffer){
+						this.vDomWindowBuffer = rowHeight * 2;
+					}
+					totalRowsRendered++;
+				});
+
+				resized = this.table.rowManager.adjustTableSize();
+				containerHeight = this.elementVertical.clientHeight;
+				if(resized && (fixedHeight || this.table.options.maxHeight))
+				{
+					avgRowHeight = rowsHeight / totalRowsRendered;
+					rowsToRender = Math.max(this.vDomWindowMinTotalRows, Math.ceil((containerHeight / avgRowHeight) + (this.vDomWindowBuffer / avgRowHeight)));
+				}
 			}
 
 			if(!position){
 				this.vDomTopPad = 0;
-				//adjust rowheight to match average of rendered elements
-				this.vDomRowHeight = Math.floor((rowsHeight + topPadHeight) / i);
+				//adjust row height to match average of rendered elements
+				this.vDomRowHeight = Math.floor((rowsHeight + topPadHeight) / totalRowsRendered);
 				this.vDomBottomPad = this.vDomRowHeight * (rowsCount - this.vDomBottom -1);
 
 				this.vDomScrollHeight = topPadHeight + rowsHeight + this.vDomBottomPad - containerHeight;
-			}else{
+			}else {
 				this.vDomTopPad = !forceMove ? this.scrollTop - topPadHeight : (this.vDomRowHeight * this.vDomTop) + offset;
 				this.vDomBottomPad = this.vDomBottom == rowsCount-1 ? 0 : Math.max(this.vDomScrollHeight - this.vDomTopPad - rowsHeight - topPadHeight, 0);
 			}
-
-			element.style.paddingTop = this.vDomTopPad + "px";
-			element.style.paddingBottom = this.vDomBottomPad + "px";
+			
+			element.style.paddingTop = this.vDomTopPad+"px";
+			element.style.paddingBottom = this.vDomBottomPad+"px";
 
 			if(forceMove){
 				this.scrollTop = this.vDomTopPad + (topPadHeight) + offset - (this.elementVertical.scrollWidth > this.elementVertical.clientWidth ? this.elementVertical.offsetHeight - containerHeight : 0);
@@ -312,7 +374,7 @@ export default class VirtualDomVertical extends Renderer{
 			this.scrollTop = Math.min(this.scrollTop, this.elementVertical.scrollHeight - containerHeight);
 
 			//adjust for horizontal scrollbar if present (and not at top of table)
-			if(this.elementVertical.scrollWidth > this.elementVertical.offsetWidth && forceMove){
+			if(this.elementVertical.scrollWidth > this.elementVertical.clientWidth && forceMove){
 				this.scrollTop += this.elementVertical.offsetHeight - containerHeight;
 			}
 
@@ -330,9 +392,10 @@ export default class VirtualDomVertical extends Renderer{
 		addedRows = [],
 		paddingAdjust = 0,
 		index = this.vDomTop -1,
-		i = 0;
+		i = 0,
+		working = true;
 
-		while(true){
+		while(working){
 			if(this.vDomTop){
 				let row = rows[index],
 				rowHeight, initialized;
@@ -368,15 +431,15 @@ export default class VirtualDomVertical extends Renderer{
 						i++;
 
 					}else{
-						break;
+						working = false;
 					}
 
 				}else{
-					break;
+					working = false;
 				}
 
 			}else{
-				break;
+				working = false;
 			}
 		}
 
@@ -405,11 +468,12 @@ export default class VirtualDomVertical extends Renderer{
 	_removeTopRow(rows, fillableSpace){
 		var removableRows = [],
 		paddingAdjust = 0,
-		i = 0;
+		i = 0,
+		working = true;
 
-		while(true){
+		while(working){
 			let row = rows[this.vDomTop],
-			rowHeight, diff;
+			rowHeight;
 
 			if(row && i < this.vDomMaxRenderChain){
 				rowHeight = row.getHeight() || this.vDomRowHeight;
@@ -423,10 +487,10 @@ export default class VirtualDomVertical extends Renderer{
 					removableRows.push(row);
 					i++;
 				}else{
-					break;
+					working = false;
 				}
 			}else{
-				break;
+				working = false;
 			}
 		}
 
@@ -450,9 +514,10 @@ export default class VirtualDomVertical extends Renderer{
 		addedRows = [],
 		paddingAdjust = 0,
 		index = this.vDomBottom + 1,
-		i = 0;
+		i = 0,
+		working = true;
 
-		while(true){
+		while(working){
 			let row = rows[index],
 			rowHeight, initialized;
 
@@ -486,10 +551,10 @@ export default class VirtualDomVertical extends Renderer{
 					index++;
 					i++;
 				}else{
-					break;
+					working = false;
 				}
 			}else{
-				break;
+				working = false;
 			}
 		}
 
@@ -514,11 +579,12 @@ export default class VirtualDomVertical extends Renderer{
 	_removeBottomRow(rows, fillableSpace){
 		var removableRows = [],
 		paddingAdjust = 0,
-		i = 0;
+		i = 0,
+		working = true;
 
-		while(true){
+		while(working){
 			let row = rows[this.vDomBottom],
-			rowHeight, diff;
+			rowHeight;
 
 			if(row && i < this.vDomMaxRenderChain){
 				rowHeight = row.getHeight() || this.vDomRowHeight;
@@ -532,10 +598,10 @@ export default class VirtualDomVertical extends Renderer{
 					removableRows.push(row);
 					i++;
 				}else{
-					break;
+					working = false;
 				}
 			}else{
-				break;
+				working = false;
 			}
 		}
 

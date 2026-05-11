@@ -2,7 +2,12 @@ import Module from '../../core/Module.js';
 
 import defaultValidators from './defaults/validators.js';
 
-class Validate extends Module{
+export default class Validate extends Module{
+
+	static moduleName = "validate";
+
+	//load defaults
+	static validators = defaultValidators;
 	
 	constructor(table){
 		super(table);
@@ -89,7 +94,7 @@ class Validate extends Module{
 		var invalid = [];
 		
 		column.cells.forEach((cell) => {
-			if(!this.cellValidate(cell)){
+			if(this.cellValidate(cell) !== true){
 				invalid.push(cell.getComponent());
 			}
 		});
@@ -105,7 +110,7 @@ class Validate extends Module{
 		var invalid = [];
 		
 		row.cells.forEach((cell) => {
-			if(!this.cellValidate(cell)){
+			if(this.cellValidate(cell) !== true){
 				invalid.push(cell.getComponent());
 			}
 		});
@@ -193,25 +198,22 @@ class Validate extends Module{
 		
 		switch(typeof value){
 			case "string":
-			pos = value.indexOf(':');
+				pos = value.indexOf(':');
 			
-			if(pos > -1){
-				type = value.substring(0,pos);
-				params = value.substring(pos+1);
-			}else{
-				type = value;
-			}
+				if(pos > -1){
+					type = value.substring(0,pos);
+					params = value.substring(pos+1);
+				}else{
+					type = value;
+				}
 			
-			return this._buildValidator(type, params);
-			break;
+				return this._buildValidator(type, params);
 			
 			case "function":
-			return this._buildValidator(value);
-			break;
+				return this._buildValidator(value);
 			
 			case "object":
-			return this._buildValidator(value.type, value.parameters);
-			break;
+				return this._buildValidator(value.type, value.parameters);
 		}
 	}
 	
@@ -299,10 +301,3 @@ class Validate extends Module{
 		}
 	}
 }
-
-Validate.moduleName = "validate";
-
-//load defaults
-Validate.validators = defaultValidators;
-
-export default Validate;

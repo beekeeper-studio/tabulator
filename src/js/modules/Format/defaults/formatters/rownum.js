@@ -1,3 +1,14 @@
 export default function(cell, formatterParams, onRendered){
-	return this.table.rowManager.activeRows.indexOf(cell.getRow()._getSelf()) + 1 || "";
-};
+	var content = document.createElement("span");
+	var row = cell.getRow();
+	var table = cell.getTable();
+
+	row.watchPosition((position) => {
+		if (formatterParams.relativeToPage) {
+			position += table.modules.page.getPageSize() * (table.modules.page.getPage() - 1);
+		}
+		content.innerText = position;
+	});
+	
+	return content;
+}

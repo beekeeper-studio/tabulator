@@ -3,9 +3,14 @@ import CoreFeature from '../../../../core/CoreFeature.js';
 export default function(list, options, setFileContents){
 	var self = this,
 	sheetName = options.sheetName || "Sheet1",
-	workbook = XLSX.utils.book_new(),
+	XLSXLib = this.dependencyRegistry.lookup("XLSX"),
+	workbook = XLSXLib.utils.book_new(),
 	tableFeatures = new CoreFeature(this),
+	compression =  'compress' in options ? options.compress : true,
+	writeOptions = options.writeOptions || {bookType:'xlsx', bookSST:true, compression},
 	output;
+
+	writeOptions.type = 'binary';
 
 	workbook.SheetNames = [];
 	workbook.Sheets = {};
@@ -39,9 +44,9 @@ export default function(list, options, setFileContents){
 		});
 
 		//convert rows to worksheet
-		XLSX.utils.sheet_add_aoa(worksheet, rows);
+		XLSXLib.utils.sheet_add_aoa(worksheet, rows);
 
-		worksheet['!ref'] = XLSX.utils.encode_range(range);
+		worksheet['!ref'] = XLSXLib.utils.encode_range(range);
 
 		if(merges.length){
 			worksheet["!merges"] = merges;
@@ -89,10 +94,10 @@ export default function(list, options, setFileContents){
 		var buf = new ArrayBuffer(s.length);
 		var view = new Uint8Array(buf);
 		for (var i=0; i!=s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
-			return buf;
+		return buf;
 	}
 
-	output = XLSX.write(workbook, {bookType:'xlsx', bookSST:true, type: 'binary'});
+	output = XLSXLib.write(workbook, writeOptions);
 
 	setFileContents(s2ab(output), "application/octet-stream");
-};
+}

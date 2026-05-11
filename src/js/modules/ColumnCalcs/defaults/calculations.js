@@ -1,7 +1,7 @@
 export default {
 	"avg":function(values, data, calcParams){
 		var output = 0,
-		precision = typeof calcParams.precision !== "undefined" ? calcParams.precision : 2
+		precision = typeof calcParams.precision !== "undefined" ? calcParams.precision : 2;
 
 		if(values.length){
 			output = values.reduce(function(sum, value){
@@ -82,5 +82,12 @@ export default {
 		}
 
 		return output;
+	},
+	"unique":function(values, data, calcParams){
+		var unique = values.filter((value, index) => {
+			return (values || value === 0) && values.indexOf(value) === index;
+		});
+
+		return unique.length;
 	},
 };

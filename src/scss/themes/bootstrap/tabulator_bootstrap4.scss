@@ -1,5 +1,4 @@
-@import "functions4.scss";
-@import "variables4.scss";
+@use "variables4.scss" as *;
 
 // Style conversion file, bootstrap to tabulator
 
@@ -8,9 +7,9 @@ $backgroundColor: $table-bg !default; //background color of tabulator
 $borderColor:$table-border-color !default; //border to tabulator
 $textSize:16px !default; //table text size
 
-//header themeing
+//header theming
 $headerBackgroundColor:#fff !default; //border to tabulator
-$headerSeperatorColor:$table-border-color !default; //header bottom seperator color
+$headerSeparatorColor:$table-border-color !default; //header bottom separator color
 
 $cellPadding:12px !default; //padding round header
 
@@ -18,7 +17,7 @@ $cellPadding:12px !default; //padding round header
 $sortArrowActive: #666 !default;
 $sortArrowInactive: #bbb !default;
 
-//row themeing
+//row theming
 $rowBackgroundColor:$backgroundColor !default; //table row background color
 $rowAltBackgroundColor: $table-accent-bg !default; //table row background color
 $rowBorderColor:$table-border-color !default; //table border color
@@ -31,22 +30,41 @@ $rowSelectedBackgroundHover: #769BCC !default;//row background color when select
 $editBoxColor:#1D68CD !default; //border color for edit boxes
 $errorColor:#dd0000 !default; //error indication
 
-//footer themeing
+//footer theming
 $footerBorderColor:$pagination-border-color !default; //footer border color
-$footerSeperatorColor:$table-border-color !default; //footer bottom seperator color
+$footerSeparatorColor:$table-border-color !default; //footer bottom separator color
 $footerActiveColor:$pagination-active-color !default; //footer bottom active text color
 
 $table-cell-padding-sm: 5px;
 
-@import "../../tabulator.scss";
+@use "../../tabulator.scss" with (
+	$backgroundColor: $backgroundColor,
+	$borderColor: $borderColor,
+	$textSize: $textSize,
+	$headerBackgroundColor: $headerBackgroundColor,
+	$headerSeparatorColor: $headerSeparatorColor,
+	$sortArrowActive: $sortArrowActive,
+	$sortArrowInactive: $sortArrowInactive,
+	$rowBackgroundColor: $rowBackgroundColor,
+	$rowAltBackgroundColor: $rowAltBackgroundColor,
+	$rowBorderColor: $rowBorderColor,
+	$rowHoverBackground: $rowHoverBackground,
+	$rowSelectedBackground: $rowSelectedBackground,
+	$rowSelectedBackgroundHover: $rowSelectedBackgroundHover,
+	$editBoxColor: $editBoxColor,
+	$errorColor: $errorColor,
+	$footerBorderColor: $footerBorderColor,
+	$footerSeparatorColor: $footerSeparatorColor,
+	$footerActiveColor: $footerActiveColor
+);
 
 .tabulator{
 	background-color: $backgroundColor;
 	border:none;
 
 	.tabulator-header{
-		border-top:1px solid $headerSeperatorColor;
-		border-bottom:2px solid $headerSeperatorColor;
+		border-top:1px solid $headerSeparatorColor;
+		border-bottom:2px solid $headerSeparatorColor;
 		color:inherit;
 
 		.tabulator-col{
@@ -96,7 +114,7 @@ $table-cell-padding-sm: 5px;
 
 		.tabulator-calcs-holder{
 			width:100%;
-			border-bottom:1px solid $headerSeperatorColor;
+			border-bottom:1px solid $headerSeparatorColor;
 		}
 	}
 
@@ -114,6 +132,18 @@ $table-cell-padding-sm: 5px;
 
 	.tabulator-footer{
 		color:inherit;
+
+		.tabulator-spreadsheet-tabs{
+			.tabulator-spreadsheet-tab{
+				background-color: tabulator.$spreadsheetActiveTabColor;
+				font-weight: normal;
+
+				&.tabulator-spreadsheet-tab-active{
+					background-color:$pagination-active-bg;
+					color:$footerActiveColor;
+				}
+			}
+		}
 
 		.tabulator-paginator{
 			color:inherit;
@@ -152,10 +182,12 @@ $table-cell-padding-sm: 5px;
 			}
 
 			&:not(.disabled){
-				&:hover{
-					border-color:$pagination-hover-border-color;
-					background:$pagination-hover-bg;
-					color:$pagination-hover-color;
+				@media (hover:hover) and (pointer:fine){
+					&:hover{
+						border-color:$pagination-hover-border-color;
+						background:$pagination-hover-bg;
+						color:$pagination-hover-color;
+					}
 				}
 			}
 		}
@@ -202,11 +234,13 @@ $table-cell-padding-sm: 5px;
 			background-color: $table-dark-bg;
 			color: $table-dark-color;
 
-			&:hover{
-				background-color: $table-dark-border-color;
+			@media (hover:hover) and (pointer:fine){
+				&:hover{
+					background-color: $table-dark-border-color;
 
-				.tabulator-cell{
-					background-color: $table-dark-hover-bg;
+					.tabulator-cell{
+						background-color: $table-dark-hover-bg;
+					}
 				}
 			}
 
@@ -234,21 +268,23 @@ $table-cell-padding-sm: 5px;
 	&.table-striped{
 		&:not(.table-dark){
 			.tabulator-row{
-				&:nth-child(even){
+				&.tabulator-row-even{
 					background-color: $rowAltBackgroundColor;
 
 					&.tabulator-selected{
 						background-color:$rowSelectedBackground;
 					}
 
-					&.tabulator-selectable:hover{
-						background-color:$rowHoverBackground;
-						cursor: pointer;
-					}
-
-					&.tabulator-selected:hover{
-						background-color:$rowSelectedBackgroundHover;
-						cursor: pointer;
+					@media (hover:hover) and (pointer:fine){
+						&.tabulator-selectable:hover{
+							background-color:$rowHoverBackground;
+							cursor: pointer;
+						}
+						
+						&.tabulator-selected:hover{
+							background-color:$rowSelectedBackgroundHover;
+							cursor: pointer;
+						}
 					}
 				}
 			}
@@ -453,6 +489,12 @@ $table-cell-padding-sm: 5px;
 			border-right: none;
 		}
 
+		&.tabulator-row-header{
+			border-right:1px solid $borderColor;
+			border-bottom:none;
+			background:$headerBackgroundColor;
+		}
+
 		.tabulator-data-tree-control{
 			border:1px solid #ccc;
 
@@ -493,9 +535,11 @@ $table-cell-padding-sm: 5px;
 			}
 		}
 
-		&:hover{
-			color:$headerBackgroundColor;
-		}
+		@media (hover:hover) and (pointer:fine){
+			&:hover{
+				color:$headerBackgroundColor;
+			}
+		}	
 	}
 
 	.tabulator-edit-select-list-notice{

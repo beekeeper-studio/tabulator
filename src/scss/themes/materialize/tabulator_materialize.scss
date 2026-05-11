@@ -1,4 +1,5 @@
-@import "variables.scss";
+@use "sass:color";
+@use "variables.scss" as *;
 
 // Style conversion file, bootstrap to tabulator
 
@@ -7,9 +8,9 @@ $backgroundColor: #fff !default; //background color of tabulator
 $borderColor:$table-border-color !default; //border to tabulator
 $textSize:16px !default; //table text size
 
-//header themeing
+//header theming
 $headerBackgroundColor:#fff !default; //border to tabulator
-$headerSeperatorColor:$table-border-color !default; //header bottom seperator color
+$headerSeparatorColor:$table-border-color !default; //header bottom separator color
 
 $cellPadding:15px !default; //padding round header
 
@@ -17,8 +18,8 @@ $cellPadding:15px !default; //padding round header
 $sortArrowActive: #666 !default;
 $sortArrowInactive: #bbb !default;
 
-//row themeing
-$rowBackgroundColor:transparent !default; //table row background color
+//row theming
+$rowBackgroundColor:#fff !default; //table row background color
 $rowAltBackgroundColor: $table-striped-color !default; //table row background color
 $rowBorderColor:$table-border-color !default; //table border color
 $rowHoverBackground:$table-striped-color !default; //row background color on hover
@@ -26,16 +27,45 @@ $rowHoverBackground:$table-striped-color !default; //row background color on hov
 $rowSelectedBackground:$primary-color !default; //row background color when selected
 $rowSelectedBackgroundHover: $primary-color !default;//row background color when selected and hovered
 
-
 $editBoxColor:$primary-color !default; //border color for edit boxes
 $errorColor:#dd0000 !default; //error indication
 
-//footer themeing
+//footer theming
 $footerBorderColor:$table-border-color !default; //footer border color
-$footerSeperatorColor:$table-border-color !default; //footer bottom seperator color
+$footerSeparatorColor:$table-border-color !default; //footer bottom separator color
 $footerActiveColor:$primary-color !default; //footer bottom active text color
 
-@import "../../tabulator.scss";
+//range selection
+$rangeBorderColor: #{color.adjust($primary-color, $lightness: -10%)} !default; //range border color
+$rangeHandleColor: $rangeBorderColor !default; //range handle color
+$rangeHeaderSelectedBackground: $rangeBorderColor !default; //header background color when selected
+$rangeHeaderSelectedTextColor: #FFFFFF !default; //header text color when selected
+
+
+@use "../../tabulator.scss" with (
+	$backgroundColor: $backgroundColor,
+	$borderColor: $borderColor,
+	$textSize: $textSize,
+	$headerBackgroundColor: $headerBackgroundColor,
+	$headerSeparatorColor: $headerSeparatorColor,
+	$sortArrowActive: $sortArrowActive,
+	$sortArrowInactive: $sortArrowInactive,
+	$rowBackgroundColor: $rowBackgroundColor,
+	$rowAltBackgroundColor: $rowAltBackgroundColor,
+	$rowBorderColor: $rowBorderColor,
+	$rowHoverBackground: $rowHoverBackground,
+	$rowSelectedBackground: $rowSelectedBackground,
+	$rowSelectedBackgroundHover: $rowSelectedBackgroundHover,
+	$editBoxColor: $editBoxColor,
+	$errorColor: $errorColor,
+	$footerBorderColor: $footerBorderColor,
+	$footerSeparatorColor: $footerSeparatorColor,
+	$footerActiveColor: $footerActiveColor,
+	$rangeBorderColor: $rangeBorderColor,
+	$rangeHandleColor: $rangeHandleColor,
+	$rangeHeaderSelectedBackground: $rangeHeaderSelectedBackground,
+	$rangeHeaderSelectedTextColor: $rangeHeaderSelectedTextColor
+);
 
 .tabulator{
 	border:none;
@@ -74,10 +104,11 @@ $footerActiveColor:$primary-color !default; //footer bottom active text color
 		.tabulator-calcs-holder{
 			width:100%;
 
-			border-bottom:1px solid $headerSeperatorColor;
+			border-bottom:1px solid $headerSeparatorColor;
 		}
 
 		.tabulator-frozen-rows-holder{
+			padding-top: 1em;
 			min-width:600%;
 
 			&:empty{
@@ -95,6 +126,18 @@ $footerActiveColor:$primary-color !default; //footer bottom active text color
 	.tabulator-footer{
 		background-color:transparent;
 		color:inherit;
+
+		.tabulator-spreadsheet-tabs{
+			.tabulator-spreadsheet-tab{
+				padding:8px 12px;
+
+				font-weight: normal;
+
+				&.tabulator-spreadsheet-tab-active{
+					color:$footerActiveColor;
+				}
+			}
+		}
 
 		.tabulator-paginator{
 			color:inherit;
@@ -137,14 +180,16 @@ $footerActiveColor:$primary-color !default; //footer bottom active text color
 					background-color:$rowSelectedBackground !important;
 				}
 
-				&.tabulator-selectable:hover{
-					background-color:$rowHoverBackground;
-					cursor: pointer;
-				}
+				@media (hover:hover) and (pointer:fine){
+					&.tabulator-selectable:hover{
+						background-color:$rowHoverBackground;
+						cursor: pointer;
+					}
 
-				&.tabulator-selected:hover{
-					background-color:$rowSelectedBackgroundHover !important;
-					cursor: pointer;
+					&.tabulator-selected:hover{
+						background-color:$rowSelectedBackgroundHover !important;
+						cursor: pointer;
+					}
 				}
 			}
 		}
@@ -157,7 +202,7 @@ $footerActiveColor:$primary-color !default; //footer bottom active text color
 	border-bottom:1px solid $rowBorderColor;
 
 	&.tabulator-row-even{
-		background-color: transparent;
+		background-color: $rowBackgroundColor;
 	}
 
 	.tabulator-cell{
@@ -166,6 +211,12 @@ $footerActiveColor:$primary-color !default; //footer bottom active text color
 
 		&:last-of-type{
 			border-right: none;
+		}
+
+		&.tabulator-row-header{
+			border-right:1px solid $borderColor;
+			border-bottom:none;
+			background:$headerBackgroundColor;
 		}
 
 		.tabulator-data-tree-control{
@@ -211,8 +262,10 @@ $footerActiveColor:$primary-color !default; //footer bottom active text color
 			}
 		}
 
-		&:hover{
-			color:$headerBackgroundColor;
+		@media (hover:hover) and (pointer:fine){
+			&:hover{
+				color:$headerBackgroundColor;
+			}
 		}
 	}
 

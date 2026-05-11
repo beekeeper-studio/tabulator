@@ -1,11 +1,28 @@
-![Tabulator Table](http://olifolkerd.github.io/tabulator/images/tabulator.png)
+This fork is based on version 6.3.1 with addition to these changes:
+- fix navigation conflict with SelectRange and Edit https://github.com/olifolkerd/tabulator/pull/4516
+- blur editor after pressing next/prev https://github.com/olifolkerd/tabulator/pull/4517
+- fix errors when handling BigInt https://github.com/beekeeper-studio/tabulator/commit/13f9a9b99a7fb7bb8359a6f991afbd874835e2fd
 
+<p align="center">
+  <img height="200" src="http://tabulator.info/images/logos/t_hollow.png">
+</p>
+
+<p align="center">
+	<img height="50" src="http://tabulator.info/images/tabulator.png">
+</p>
+
+<p align="center">
 An easy to use interactive table generation JavaScript library
+</p>
 
-Full documentation & demos can be found at: [http://tabulator.info](http://tabulator.info)
+<p align="center">
+Full documentation & demos can be found at:  <a href="http://tabulator.info">http://tabulator.info</a>
+</p>
+
 ***
 ![Tabulator Table](http://tabulator.info/images/tabulator_table.jpg)
 ***
+
 
 Features
 ================================
@@ -45,20 +62,39 @@ var table = new Tabulator("#example-table", {});
 
 
 ### Bower Installation
-To get Tabulator via the Bower package manager, open a terminal in your project directory and run the following commmand:
+To get Tabulator via the Bower package manager, open a terminal in your project directory and run the following command:
 ```
 bower install tabulator --save
 ```
 
 ### NPM Installation
-To get Tabulator via the NPM package manager, open a terminal in your project directory and run the following commmand:
+To get Tabulator via the NPM package manager, open a terminal in your project directory and run the following command:
 ```
 npm install tabulator-tables --save
 ```
 
 ### CDN - UNPKG
-To access Tabulator directly from the UNPKG CDN servers, include the following two lines at the start of your project, instead of the localy hosted versions:
+To access Tabulator directly from the UNPKG CDN servers, include the following two lines at the start of your project, instead of the locally hosted versions:
 ```html
 <link href="https://unpkg.com/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
 ```
+
+Testing
+================================
+Tabulator comes with both Unit and End-to-End (E2E) tests. Here’s how you can run them:
+
+```bash
+# Unit test
+npm run test:unit
+
+# E2E test
+npm run build # Make sure to build the project first
+npx playwright test # Run the tests
+# or
+npm run test:e2e
+
+# Run all tests
+npm run test
+```
+

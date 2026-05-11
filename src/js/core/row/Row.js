@@ -13,11 +13,13 @@ export default class Row extends CoreFeature{
 		this.modules = {}; //hold module variables;
 		this.cells = [];
 		this.height = 0; //hold element height
-		this.heightStyled = ""; //hold element height prestyled to improve render efficiency
+		this.heightStyled = ""; //hold element height pre-styled to improve render efficiency
 		this.manualHeight = false; //user has manually set row height
 		this.outerHeight = 0; //hold elements outer height
 		this.initialized = false; //element has been rendered
 		this.heightInitialized = false; //element has resized cells to fit
+		this.position = 0; //store position of element in row list
+		this.positionWatchers = [];
 		
 		this.component = null;
 		
@@ -63,7 +65,7 @@ export default class Row extends CoreFeature{
 	}
 	
 	//functions to setup on first render
-	initialize(force){
+	initialize(force, inFragment){
 		this.create();
 		
 		if(!this.initialized || force){
@@ -78,7 +80,7 @@ export default class Row extends CoreFeature{
 			
 			this.initialized = true;
 			
-			this.table.columnManager.renderer.renderRowCells(this);
+			this.table.columnManager.renderer.renderRowCells(this, inFragment);
 			
 			if(force){
 				this.normalizeHeight();
@@ -92,8 +94,14 @@ export default class Row extends CoreFeature{
 			
 			this.dispatch("row-layout-after", this);
 		}else{
-			this.table.columnManager.renderer.rerenderRowCells(this);
+			this.table.columnManager.renderer.rerenderRowCells(this, inFragment);
 		}
+	}
+
+	rendered(){
+		this.cells.forEach((cell) => {
+			cell.cellRendered();
+		});
 	}
 	
 	reinitializeHeight(){
@@ -130,20 +138,13 @@ export default class Row extends CoreFeature{
 	
 	//get heights when doing bulk row style calcs in virtual DOM
 	calcHeight(force){
-		var maxHeight = 0,
-		minHeight;
-		
+		var maxHeight = 0, minHeight  = 0;
+
 		if(this.table.options.rowHeight){
 			this.height = this.table.options.rowHeight;
 		}else{
-			minHeight = this.table.options.resizableRows ? this.element.clientHeight : 0;
-			
-			this.cells.forEach(function(cell){
-				var height = cell.getHeight();
-				if(height > maxHeight){
-					maxHeight = height;
-				}
-			});
+			minHeight = this.calcMinHeight();
+			maxHeight = this.calcMaxHeight();
 			
 			if(force){
 				this.height = Math.max(maxHeight, minHeight);
@@ -154,6 +155,24 @@ export default class Row extends CoreFeature{
 		
 		this.heightStyled = this.height ? this.height + "px" : "";
 		this.outerHeight = this.element.offsetHeight;
+	}
+
+	calcMinHeight(){
+		return this.table.options.resizableRows ? this.element.clientHeight : 0;
+	}
+
+	calcMaxHeight(){
+		var maxHeight = 0;
+
+		this.cells.forEach(function(cell){
+			var height = cell.getHeight();
+
+			if(height > maxHeight){
+				maxHeight = height;
+			}
+		});
+
+		return maxHeight;
 	}
 	
 	//set of cells
@@ -195,6 +214,10 @@ export default class Row extends CoreFeature{
 			
 			// this.outerHeight = this.element.outerHeight();
 			this.outerHeight = this.element.offsetHeight;
+
+			if(this.subscribedExternal("rowHeight")){
+				this.dispatchExternal("rowHeight", this.getComponent());
+			}
 		}
 	}
 	
@@ -246,14 +269,14 @@ export default class Row extends CoreFeature{
 			newRowData = this.chain("row-data-changing", [this, tempData, updatedData], null, updatedData);
 			
 			//set data
-			for (var attrname in newRowData) {
+			for (let attrname in newRowData) {
 				this.data[attrname] = newRowData[attrname];
 			}
 			
 			this.dispatch("row-data-save-after", this);
 			
 			//update affected cells only
-			for (var attrname in updatedData) {
+			for (let attrname in updatedData) {
 				
 				let columns = this.table.columnManager.getColumnsByFieldRoot(attrname);
 				
@@ -262,7 +285,7 @@ export default class Row extends CoreFeature{
 					
 					if(cell){
 						let value = column.getFieldValue(newRowData);
-						if(cell.getValue() != value){
+						if(cell.getValue() !== value){
 							cell.setValueProcessData(value);
 							
 							if(visible){
@@ -313,7 +336,7 @@ export default class Row extends CoreFeature{
 		
 		column = this.table.columnManager.findColumn(column);
 		
-		if(!this.initialized){
+		if(!this.initialized && this.cells.length === 0){
 			this.generateCells();
 		}
 		
@@ -337,7 +360,7 @@ export default class Row extends CoreFeature{
 	}
 	
 	getCells(){
-		if(!this.initialized){
+		if(!this.initialized && this.cells.length === 0){
 			this.generateCells();
 		}
 		
@@ -375,9 +398,7 @@ export default class Row extends CoreFeature{
 	}
 	
 	deleteActual(blockRedraw){
-		var index = this.table.rowManager.getRowIndex(this);
-		
-		this.detatchModules();
+		this.detachModules();
 		
 		this.table.rowManager.deleteRow(this, blockRedraw);
 		
@@ -390,7 +411,7 @@ export default class Row extends CoreFeature{
 		this.dispatch("row-deleted", this);
 	}
 	
-	detatchModules(){
+	detachModules(){
 		this.dispatch("row-deleting", this);
 	}
 	
@@ -403,7 +424,7 @@ export default class Row extends CoreFeature{
 	}
 	
 	wipe(){
-		this.detatchModules();
+		this.detachModules();
 		this.deleteCells();
 		
 		if(this.element){
@@ -416,6 +437,30 @@ export default class Row extends CoreFeature{
 		
 		this.element = false;
 		this.modules = {};
+	}
+
+	isDisplayed(){
+		return this.table.rowManager.getDisplayRows().includes(this);
+	}
+
+	getPosition(){
+		return this.isDisplayed() ? this.position : false;
+	}
+
+	setPosition(position){
+		if(position != this.position){
+			this.position = position;
+
+			this.positionWatchers.forEach((callback) => {
+				callback(this.position);
+			});
+		}
+	}
+
+	watchPosition(callback){
+		this.positionWatchers.push(callback);
+
+		callback(this.position);
 	}
 	
 	getGroup(){

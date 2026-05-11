@@ -1,6 +1,10 @@
 import Module from '../../core/Module.js';
+import extensions from './extensions/extensions.js';
 
-class ResponsiveLayout extends Module{
+export default class ResponsiveLayout extends Module{
+
+	static moduleName = "responsiveLayout";
+	static moduleExtensions = extensions;
 
 	constructor(table){
 		super(table);
@@ -23,9 +27,6 @@ class ResponsiveLayout extends Module{
 
 	//generate responsive columns list
 	initialize(){
-		var self = this,
-		columns = [];
-
 		if(this.table.options.responsiveLayout){
 			this.subscribe("column-layout", this.initializeColumn.bind(this));
 			this.subscribe("column-show", this.updateColumnVisibility.bind(this));
@@ -36,8 +37,9 @@ class ResponsiveLayout extends Module{
 			this.subscribe("column-delete", this.initializeResponsivity.bind(this));
 
 			this.subscribe("table-redrawing", this.tableRedraw.bind(this));
-
+			
 			if(this.table.options.responsiveLayout === "collapse"){
+				this.subscribe("row-data-changed", this.generateCollapsedRowContent.bind(this));
 				this.subscribe("row-init", this.initializeRow.bind(this));
 				this.subscribe("row-layout", this.layoutRow.bind(this));
 			}
@@ -59,6 +61,10 @@ class ResponsiveLayout extends Module{
 		this.collapseFormatter = this.table.options.responsiveLayoutCollapseFormatter || this.formatCollapsedData;
 		this.collapseStartOpen = this.table.options.responsiveLayoutCollapseStartOpen;
 		this.hiddenColumns = [];
+
+		if(this.collapseFormatter){
+			this.collapseFormatter = this.collapseFormatter.bind(this.table);
+		}
 
 		//determine level of responsivity for each column
 		this.table.columnManager.columnsByIndex.forEach((column, i) => {
@@ -185,22 +191,21 @@ class ResponsiveLayout extends Module{
 
 	//redraw columns to fit space
 	update(){
-		var self = this,
-		working = true;
+		var working = true;
 
 		while(working){
 
-			let width = self.table.modules.layout.getMode() == "fitColumns" ? self.table.columnManager.getFlexBaseWidth() : self.table.columnManager.getWidth();
+			let width = this.table.modules.layout.getMode() == "fitColumns" ? this.table.columnManager.getFlexBaseWidth() : this.table.columnManager.getWidth();
 
-			let diff = (self.table.options.headerVisible ? self.table.columnManager.element.clientWidth : self.table.element.clientWidth) - width;
+			let diff = (this.table.options.headerVisible ? this.table.columnManager.element.clientWidth : this.table.element.clientWidth) - width;
 
 			if(diff < 0){
 				//table is too wide
-				let column = self.columns[self.index];
+				let column = this.columns[this.index];
 
 				if(column){
-					self.hideColumn(column);
-					self.index ++;
+					this.hideColumn(column);
+					this.index ++;
 				}else{
 					working = false;
 				}
@@ -208,13 +213,13 @@ class ResponsiveLayout extends Module{
 			}else{
 
 				//table has spare space
-				let column = self.columns[self.index -1];
+				let column = this.columns[this.index -1];
 
 				if(column){
 					if(diff > 0){
 						if(diff >= column.getWidth()){
-							self.showColumn(column);
-							self.index --;
+							this.showColumn(column);
+							this.index --;
 						}else{
 							working = false;
 						}
@@ -226,18 +231,17 @@ class ResponsiveLayout extends Module{
 				}
 			}
 
-			if(!self.table.rowManager.activeRowsCount){
-				self.table.rowManager.renderEmptyScroll();
+			if(!this.table.rowManager.activeRowsCount){
+				this.table.rowManager.renderEmptyScroll();
 			}
 		}
 	}
 
 	generateCollapsedContent(){
-		var self = this,
-		rows = this.table.rowManager.getDisplayRows();
+		var rows = this.table.rowManager.getDisplayRows();
 
-		rows.forEach(function(row){
-			self.generateCollapsedRowContent(row);
+		rows.forEach((row) => {
+			this.generateCollapsedRowContent(row);
 		});
 	}
 
@@ -253,20 +257,20 @@ class ResponsiveLayout extends Module{
 			if(contents){
 				el.appendChild(contents);
 			}
+			row.calcHeight(true);
 		}
 	}
 
 	generateCollapsedRowData(row){
-		var self = this,
-		data = row.getData(),
+		var data = row.getData(),
 		output = [],
 		mockCellComponent;
 
-		this.hiddenColumns.forEach(function(column){
+		this.hiddenColumns.forEach((column) => {
 			var value = column.getFieldValue(data);
 
 			if(column.definition.title && column.field){
-				if(column.modules.format && self.table.options.responsiveLayoutCollapseUseFormatters){
+				if(column.modules.format && this.table.options.responsiveLayoutCollapseUseFormatters){
 
 					mockCellComponent = {
 						value:false,
@@ -277,6 +281,9 @@ class ResponsiveLayout extends Module{
 						getData:function(){
 							return data;
 						},
+						getType:function(){
+							return "cell";
+						},
 						getElement:function(){
 							return document.createElement("div");
 						},
@@ -285,6 +292,9 @@ class ResponsiveLayout extends Module{
 						},
 						getColumn:function(){
 							return column.getComponent();
+						},
+						getTable:() => {
+							return this.table;
 						},
 					};
 
@@ -295,7 +305,7 @@ class ResponsiveLayout extends Module{
 					output.push({
 						field: column.field,
 						title: column.definition.title,
-						value: column.modules.format.formatter.call(self.table.modules.format, mockCellComponent, column.modules.format.params, onRendered)
+						value: column.modules.format.formatter.call(this.table.modules.format, mockCellComponent, column.modules.format.params, onRendered)
 					});
 				}else{
 					output.push({
@@ -313,7 +323,7 @@ class ResponsiveLayout extends Module{
 	formatCollapsedData(data){
 		var list = document.createElement("table");
 
-		data.forEach(function(item){
+		data.forEach((item) => {
 			var row = document.createElement("tr");
 			var titleData = document.createElement("td");
 			var valueData = document.createElement("td");
@@ -321,7 +331,8 @@ class ResponsiveLayout extends Module{
 
 			var titleHighlight = document.createElement("strong");
 			titleData.appendChild(titleHighlight);
-			this.langBind("columns|" + item.field, function(text){
+			
+			this.modules.localize.bind("columns|" + item.field, function(text){
 				titleHighlight.innerHTML = text || item.title;
 			});
 
@@ -336,12 +347,8 @@ class ResponsiveLayout extends Module{
 			row.appendChild(titleData);
 			row.appendChild(valueData);
 			list.appendChild(row);
-		}, this);
+		});
 
 		return Object.keys(data).length ? list : "";
 	}
 }
-
-ResponsiveLayout.moduleName = "responsiveLayout";
-
-export default ResponsiveLayout;

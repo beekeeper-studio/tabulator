@@ -2,12 +2,19 @@ import Module from '../../core/Module.js';
 
 import defaultDownloaders from './defaults/downloaders.js';
 
-class Download extends Module{
+export default class Download extends Module{
+
+	static moduleName = "download";
+
+	//load defaults
+	static downloaders = defaultDownloaders;
 
 	constructor(table){
 		super(table);
 
-		this.registerTableOption("downloadReady", function(data, blob){return blob;}); //function to manipulate download data
+		this.registerTableOption("downloadEncoder", function(data, mimeType){
+			return new Blob([data],{type:mimeType});
+		}); //function to manipulate download data
 		this.registerTableOption("downloadConfig", {}); //download config
 		this.registerTableOption("downloadRowRange", "active"); //restrict download to active rows only
 
@@ -16,9 +23,15 @@ class Download extends Module{
 	}
 
 	initialize(){
+		this.deprecatedOptionsCheck();
+
 		this.registerTableFunction("download", this.download.bind(this));
 		this.registerTableFunction("downloadToTab", this.downloadToTab.bind(this));
 	}
+
+	deprecatedOptionsCheck(){
+
+	}	
 
 	///////////////////////////////////
 	///////// Table Functions /////////
@@ -93,16 +106,14 @@ class Download extends Module{
 
 	triggerDownload(data, mime, type, filename, newTab){
 		var element = document.createElement('a'),
-		blob = new Blob([data],{type:mime}),
-		filename = filename || "Tabulator." + (typeof type === "function" ? "txt" : type);
-
-		blob = this.table.options.downloadReady(data, blob);
+		blob = this.table.options.downloadEncoder(data, mime);
 
 		if(blob){
-
 			if(newTab){
 				window.open(window.URL.createObjectURL(blob));
 			}else{
+				filename = filename || "Tabulator." + (typeof type === "function" ? "txt" : type);
+				
 				if(navigator.msSaveOrOpenBlob){
 					navigator.msSaveOrOpenBlob(blob, filename);
 				}else{
@@ -128,15 +139,8 @@ class Download extends Module{
 	commsReceived(table, action, data){
 		switch(action){
 			case "intercept":
-			this.download(data.type, "", data.options, data.active, data.intercept);
-			break;
+				this.download(data.type, "", data.options, data.active, data.intercept);
+				break;
 		}
 	}
 }
-
-Download.moduleName = "download";
-
-//load defaults
-Download.downloaders = defaultDownloaders;
-
-export default Download;

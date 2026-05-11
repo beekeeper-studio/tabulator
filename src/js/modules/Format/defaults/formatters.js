@@ -14,10 +14,12 @@ import progress from './formatters/progress.js';
 import color from './formatters/color.js';
 import buttonTick from './formatters/buttonTick.js';
 import buttonCross from './formatters/buttonCross.js';
+import toggle from './formatters/toggle.js';
 import rownum from './formatters/rownum.js';
 import handle from './formatters/handle.js';
-import responsiveCollapse from './formatters/responsiveCollapse.js';
-import rowSelection from './formatters/rowSelection.js';
+import adaptable from './formatters/adaptable.js';
+import array from './formatters/array.js';
+import json from './formatters/json.js';
 
 export default {
 	plaintext:plaintext,
@@ -36,8 +38,10 @@ export default {
 	color:color,
 	buttonTick:buttonTick,
 	buttonCross:buttonCross,
+	toggle:toggle,
 	rownum:rownum,
 	handle:handle,
-	responsiveCollapse:responsiveCollapse,
-	rowSelection:rowSelection,
+	adaptable:adaptable,
+	array:array,
+	json:json,
 };

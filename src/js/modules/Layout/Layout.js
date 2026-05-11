@@ -2,7 +2,12 @@ import Module from '../../core/Module.js';
 
 import defaultModes from './defaults/modes.js';
 
-class Layout extends Module{
+export default class Layout extends Module{
+
+	static moduleName = "layout";
+
+	//load defaults
+	static modes = defaultModes;
 
 	constructor(table){
 		super(table, "layout");
@@ -28,6 +33,16 @@ class Layout extends Module{
 		}
 
 		this.table.element.setAttribute("tabulator-layout", this.mode);
+		this.subscribe("column-init", this.initializeColumn.bind(this));
+	}
+
+	initializeColumn(column){
+		if(column.definition.widthGrow){
+			column.definition.widthGrow = Number(column.definition.widthGrow);
+		}
+		if(column.definition.widthShrink){
+			column.definition.widthShrink = Number(column.definition.widthShrink);
+		}
 	}
 
 	getMode(){
@@ -35,17 +50,17 @@ class Layout extends Module{
 	}
 
 	//trigger table layout
-	layout(){
-		this.dispatch("layout-refreshing")
-		Layout.modes[this.mode].call(this, this.table.columnManager.columnsByIndex);
+	layout(dataChanged){
 
-		this.dispatch("layout-refreshed")
+		var variableHeight = this.table.columnManager.columnsByIndex.find((column) => column.definition.variableHeight || column.definition.formatter === "textarea");
+		
+		this.dispatch("layout-refreshing");
+		Layout.modes[this.mode].call(this, this.table.columnManager.columnsByIndex, dataChanged);
+
+		if(variableHeight){
+			this.table.rowManager.normalizeHeight(true);
+		}
+
+		this.dispatch("layout-refreshed");
 	}
 }
-
-Layout.moduleName = "layout";
-
-//load defaults
-Layout.modes = defaultModes;
-
-export default Layout;

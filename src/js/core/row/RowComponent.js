@@ -9,10 +9,10 @@ export default class RowComponent {
 				if (typeof target[name] !== "undefined") {
 					return target[name];
 				}else{
-					return target._row.table.componentFunctionBinder.handle("row", target._row, name)
+					return target._row.table.componentFunctionBinder.handle("row", target._row, name);
 				}
 			}
-		})
+		});
 	}
 
 	getData(transform){
@@ -42,16 +42,20 @@ export default class RowComponent {
 		return this._row.getData("data")[this._row.table.options.index];
 	}
 
-	getPosition(active){
-		return this._row.table.rowManager.getRowPosition(this._row, active);
+	getPosition(){
+		return this._row.getPosition();
+	}
+
+	watchPosition(callback){
+		return this._row.watchPosition(callback);
 	}
 
 	delete(){
 		return this._row.delete();
 	}
 
-	scrollTo(){
-		return this._row.table.rowManager.scrollToRow(this._row);
+	scrollTo(position, ifVisible){
+		return this._row.table.rowManager.scrollToRow(this._row, position, ifVisible);
 	}
 
 	move(to, after){

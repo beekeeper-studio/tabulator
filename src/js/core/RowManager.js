@@ -32,14 +32,14 @@ export default class RowManager extends CoreFeature{
 		this.scrollTop = 0;
 		this.scrollLeft = 0;
 		
-		this.rowNumColumn = false; //hold column component for row number column
-		
 		this.redrawBlock = false; //prevent redraws to allow multiple data manipulations before continuing
 		this.redrawBlockRestoreConfig = false; //store latest redraw function calls for when redraw is needed
 		this.redrawBlockRenderInPosition = false; //store latest redraw function calls for when redraw is needed
 		
 		this.dataPipeline = []; //hold data pipeline tasks
 		this.displayPipeline = []; //hold data display pipeline tasks
+		
+		this.scrollbarWidth = 0;
 		
 		this.renderer = null;
 	}
@@ -51,7 +51,7 @@ export default class RowManager extends CoreFeature{
 		
 		el.classList.add("tabulator-tableholder");
 		el.setAttribute("tabindex", 0);
-		el.setAttribute("role", "rowgroup");
+		// el.setAttribute("role", "rowgroup");
 		
 		return el;
 	}
@@ -66,18 +66,38 @@ export default class RowManager extends CoreFeature{
 	}
 	
 	initializePlaceholder(){
+		var placeholder = this.table.options.placeholder;
+		
+		if(typeof placeholder === "function"){
+			placeholder = placeholder.call(this.table);
+		}
+		
+		placeholder = this.chain("placeholder", [placeholder], placeholder, placeholder) || placeholder;
+		
 		//configure placeholder element
-		if(typeof this.table.options.placeholder == "string"){
+		if(placeholder){	
 			let el = document.createElement("div");
 			el.classList.add("tabulator-placeholder");
 			
-			let contents = document.createElement("div");
-			contents.classList.add("tabulator-placeholder-contents");
-			contents.innerHTML = this.table.options.placeholder;
+			if(typeof placeholder == "string"){
+				let contents = document.createElement("div");
+				contents.classList.add("tabulator-placeholder-contents");
+				contents.innerHTML = placeholder;
+				
+				el.appendChild(contents);
+				
+				this.placeholderContents = contents;
+				
+			}else if(typeof HTMLElement !== "undefined" && placeholder instanceof HTMLElement){
+				
+				el.appendChild(placeholder);
+				this.placeholderContents = placeholder;
+			}else{
+				console.warn("Invalid placeholder provided, must be string or HTML Element", placeholder);
+				
+				this.el = null;
+			}
 			
-			el.appendChild(contents);
-			
-			this.placeholderContents = contents;
 			this.placeholder = el;
 		}
 	}
@@ -92,17 +112,8 @@ export default class RowManager extends CoreFeature{
 		return this.tableElement;
 	}
 	
-	//return position of row in table
-	getRowPosition(row, active){
-		if(active){
-			return this.activeRows.indexOf(row);
-		}else{
-			return this.rows.indexOf(row);
-		}
-	}
-	
 	initialize(){
-		this.initializePlaceholder()
+		this.initializePlaceholder();
 		this.initializeRenderer();
 		
 		//initialize manager
@@ -123,7 +134,7 @@ export default class RowManager extends CoreFeature{
 				
 				this.dispatch("scroll-horizontal", left, leftDir);
 				this.dispatchExternal("scrollHorizontal", left, leftDir);
-
+				
 				this._positionPlaceholder();
 			}
 			
@@ -155,8 +166,10 @@ export default class RowManager extends CoreFeature{
 				});
 				
 				return match || false;
+			}else if(subject === null){
+				return false;
 			}
-		}else if(typeof subject == "undefined" || subject === null){
+		}else if(typeof subject == "undefined"){
 			return false;
 		}else{
 			//subject should be treated as the index of the row
@@ -179,12 +192,10 @@ export default class RowManager extends CoreFeature{
 		return match || false;
 	}
 	
-	getRowFromPosition(position, active){
-		if(active){
-			return this.activeRows[position];
-		}else{
-			return this.rows[position];
-		}
+	getRowFromPosition(position){
+		return this.getDisplayRows().find((row) => {
+			return row.type === "row" && row.getPosition() === position && row.isDisplayed();
+		});
 	}
 	
 	scrollToRow(row, position, ifVisible){
@@ -244,6 +255,14 @@ export default class RowManager extends CoreFeature{
 	_wipeElements(){
 		this.dispatch("rows-wipe");
 		
+		this.destroy();
+		
+		this.adjustTableSize();
+		
+		this.dispatch("rows-wiped");
+	}
+	
+	destroy(){
 		this.rows.forEach((row) => {
 			row.wipe();
 		});
@@ -254,8 +273,6 @@ export default class RowManager extends CoreFeature{
 		this.activeRowsCount = 0;
 		this.displayRows = [];
 		this.displayRowsCount = 0;
-		
-		this.adjustTableSize();
 	}
 	
 	deleteRow(row, blockRedraw){
@@ -284,12 +301,12 @@ export default class RowManager extends CoreFeature{
 			this.reRenderInPosition();
 		}
 		
-		this.regenerateRowNumbers();
+		this.regenerateRowPositions();
 		
 		this.dispatchExternal("rowDeleted", row.getComponent());
 		
 		if(!this.displayRowsCount){
-			this._showPlaceholder();
+			this.tableEmpty();
 		}
 		
 		if(this.subscribedExternal("dataChanged")){
@@ -303,9 +320,8 @@ export default class RowManager extends CoreFeature{
 	}
 	
 	//add multiple rows
-	addRows(data, pos, index){
-		var length = 0,
-		rows = [];
+	addRows(data, pos, index, refreshDisplayOnly){
+		var rows = [];
 		
 		return new Promise((resolve, reject) => {
 			pos = this.findAddRowPos(pos);
@@ -314,8 +330,6 @@ export default class RowManager extends CoreFeature{
 				data = [data];
 			}
 			
-			length = data.length - 1;
-			
 			if((typeof index == "undefined" && pos) || (typeof index !== "undefined" && !pos)){
 				data.reverse();
 			}
@@ -323,14 +337,14 @@ export default class RowManager extends CoreFeature{
 			data.forEach((item, i) => {
 				var row = this.addRow(item, pos, index, true);
 				rows.push(row);
-				this.dispatch("row-added", row, data, pos, index);
+				this.dispatch("row-added", row, item, pos, index);
 			});
 			
-			this.refreshActiveData(false, false, true);
+			this.refreshActiveData(refreshDisplayOnly ? "displayPipeline" : false, false, true);
 			
-			this.regenerateRowNumbers();
+			this.regenerateRowPositions();
 			
-			if(rows.length){
+			if(this.displayRowsCount){
 				this._clearPlaceholder();
 			}
 			
@@ -434,7 +448,7 @@ export default class RowManager extends CoreFeature{
 		
 		this.moveRowActual(from, to, after);
 		
-		this.regenerateRowNumbers();
+		this.regenerateRowPositions();
 		
 		this.dispatch("row-moved", from, to, after);
 		this.dispatchExternal("rowMoved", from.getComponent());
@@ -591,23 +605,23 @@ export default class RowManager extends CoreFeature{
 	
 	registerDataPipelineHandler(handler, priority){
 		if(typeof priority !== "undefined"){
-			this.dataPipeline.push({handler, priority})
+			this.dataPipeline.push({handler, priority});
 			this.dataPipeline.sort((a, b) => {
 				return a.priority - b.priority;
 			});
 		}else{
-			console.error("Data pipeline handlers must have a priority in order to be registered")
+			console.error("Data pipeline handlers must have a priority in order to be registered");
 		}
 	}
 	
 	registerDisplayPipelineHandler(handler, priority){
 		if(typeof priority !== "undefined"){
-			this.displayPipeline.push({handler, priority})
+			this.displayPipeline.push({handler, priority});
 			this.displayPipeline.sort((a, b) => {
 				return a.priority - b.priority;
 			});
 		}else{
-			console.error("Display pipeline handlers must have a priority in order to be registered")
+			console.error("Display pipeline handlers must have a priority in order to be registered");
 		}
 	}
 	
@@ -616,142 +630,144 @@ export default class RowManager extends CoreFeature{
 		var table = this.table,
 		stage = "",
 		index = 0,
-		cascadeOrder = ["all", "dataPipeline", "display", "displayPipeline", "end"],
-		displayIndex;
+		cascadeOrder = ["all", "dataPipeline", "display", "displayPipeline", "end"];
 		
-		
-		if(typeof handler === "function"){
-			index = this.dataPipeline.findIndex((item) => {
-				return item.handler === handler;
-			});
-			
-			if(index > -1){
-				stage = "dataPipeline";
-				
-				if(skipStage){
-					if(index == this.dataPipeline.length - 1){
-						stage = "display";
-					}else{
-						index++;
-					}
-				}
-			}else{
-				index = this.displayPipeline.findIndex((item) => {
+		if(!this.table.destroyed){
+			if(typeof handler === "function"){
+				index = this.dataPipeline.findIndex((item) => {
 					return item.handler === handler;
 				});
 				
 				if(index > -1){
-					stage = "displayPipeline";
+					stage = "dataPipeline";
 					
 					if(skipStage){
-						if(index == this.displayPipeline.length - 1){
-							stage = "end";
+						if(index == this.dataPipeline.length - 1){
+							stage = "display";
 						}else{
 							index++;
 						}
 					}
 				}else{
-					console.error("Unable to refresh data, invalid handler provided", handler)
-					return;
-				}
-			}
-		}else{
-			stage = handler || "all";
-			index = 0;
-		}
-		
-		if(this.redrawBlock){
-			if(!this.redrawBlockRestoreConfig || (this.redrawBlockRestoreConfig && ((this.redrawBlockRestoreConfig.stage === stage && index < this.redrawBlockRestoreConfig.index) || (cascadeOrder.indexOf(stage) < cascadeOrder.indexOf(this.redrawBlockRestoreConfig.stage))))){
-				this.redrawBlockRestoreConfig = {
-					handler: handler,
-					skipStage: skipStage,
-					renderInPosition: renderInPosition,
-					stage:stage,
-					index:index,
-				};
-			}
-			
-			return;
-		}else{
-			if(Helpers.elVisible(this.element)){
-				if(renderInPosition){
-					this.reRenderInPosition(this.refreshPipelines.bind(this, handler, stage, index, renderInPosition));
-				}else{
-					this.refreshPipelines(handler, stage, index, renderInPosition);
+					index = this.displayPipeline.findIndex((item) => {
+						return item.handler === handler;
+					});
 					
-					if(!handler){
-						this.table.columnManager.renderer.renderColumns();
-					}
-					
-					this.renderTable();
-					
-					if(table.options.layoutColumnsOnNewData){
-						this.table.columnManager.redraw(true);
+					if(index > -1){
+						stage = "displayPipeline";
+						
+						if(skipStage){
+							if(index == this.displayPipeline.length - 1){
+								stage = "end";
+							}else{
+								index++;
+							}
+						}
+					}else{
+						console.error("Unable to refresh data, invalid handler provided", handler);
+						return;
 					}
 				}
 			}else{
-				this.refreshPipelines(handler, stage, index, renderInPosition);
+				stage = handler || "all";
+				index = 0;
 			}
 			
-			this.dispatch("data-refreshed");
+			if(this.redrawBlock){
+				if(!this.redrawBlockRestoreConfig || (this.redrawBlockRestoreConfig && ((this.redrawBlockRestoreConfig.stage === stage && index < this.redrawBlockRestoreConfig.index) || (cascadeOrder.indexOf(stage) < cascadeOrder.indexOf(this.redrawBlockRestoreConfig.stage))))){
+					this.redrawBlockRestoreConfig = {
+						handler: handler,
+						skipStage: skipStage,
+						renderInPosition: renderInPosition,
+						stage:stage,
+						index:index,
+					};
+				}
+				
+				return;
+			}else{
+				if(Helpers.elVisible(this.element)){
+					if(renderInPosition){
+						this.reRenderInPosition(this.refreshPipelines.bind(this, handler, stage, index, renderInPosition));
+					}else{
+						this.refreshPipelines(handler, stage, index, renderInPosition);
+						
+						if(!handler){
+							this.table.columnManager.renderer.renderColumns();
+						}
+						
+						this.renderTable();
+						
+						if(table.options.layoutColumnsOnNewData){
+							this.table.columnManager.redraw(true);
+						}
+					}
+				}else{
+					this.refreshPipelines(handler, stage, index, renderInPosition);
+				}
+				
+				this.dispatch("data-refreshed");
+			}
 		}
 	}
 	
 	refreshPipelines(handler, stage, index, renderInPosition){
 		this.dispatch("data-refreshing");
 		
-		if(!handler){
+		if(!handler || !this.activeRowsPipeline[0]){
 			this.activeRowsPipeline[0] = this.rows.slice(0);
 		}
 		
 		//cascade through data refresh stages
 		switch(stage){
 			case "all":
-			//handle case where alldata needs refreshing
+			//handle case where all data needs refreshing
 			
 			case "dataPipeline":
-			
-			for(let i = index; i < this.dataPipeline.length; i++){
-				let result = this.dataPipeline[i].handler(this.activeRowsPipeline[i].slice(0));
+				for(let i = index; i < this.dataPipeline.length; i++){
+					let result = this.dataPipeline[i].handler(this.activeRowsPipeline[i].slice(0));
 				
-				this.activeRowsPipeline[i + 1] = result || this.activeRowsPipeline[i].slice(0);
-			}
+					this.activeRowsPipeline[i + 1] = result || this.activeRowsPipeline[i].slice(0);
+				}
 			
-			this.setActiveRows(this.activeRowsPipeline[this.dataPipeline.length]);
-			
-			this.regenerateRowNumbers();
+				this.setActiveRows(this.activeRowsPipeline[this.dataPipeline.length]);
 			
 			case "display":
-			index = 0;
-			this.resetDisplayRows();
+				index = 0;
+				this.resetDisplayRows();
 			
 			case "displayPipeline":
-			for(let i = index; i < this.displayPipeline.length; i++){
-				let result = this.displayPipeline[i].handler((i ? this.getDisplayRows(i - 1) : this.activeRows).slice(0), renderInPosition);
+				for(let i = index; i < this.displayPipeline.length; i++){
+					let result = this.displayPipeline[i].handler((i ? this.getDisplayRows(i - 1) : this.activeRows).slice(0), renderInPosition);
 				
-				this.setDisplayRows(result || this.getDisplayRows(i - 1).slice(0), i);
-			}
+					this.setDisplayRows(result || this.getDisplayRows(i - 1).slice(0), i);
+				}
 			
 			case "end":
 			//case to handle scenario when trying to skip past end stage
+				this.regenerateRowPositions();
+		}
+		
+		if(this.getDisplayRows().length){
+			this._clearPlaceholder();
 		}
 	}
 	
-	//regenerate row numbers for row number formatter if in use
-	regenerateRowNumbers(){
-		if(this.rowNumColumn){
-			this.activeRows.forEach((row) => {
-				var cell = row.getCell(this.rowNumColumn);
-				
-				if(cell){
-					cell._generateContents();
-				}
-			});
-		}
+	//regenerate row positions
+	regenerateRowPositions(){
+		var rows = this.getDisplayRows();
+		var index = 1;
+		
+		rows.forEach((row) => {
+			if (row.type === "row"){
+				row.setPosition(index);
+				index++;
+			}
+		});
 	}
 	
 	setActiveRows(activeRows){
-		this.activeRows = activeRows;
+		this.activeRows = this.activeRows = Object.assign([], activeRows);
 		this.activeRowsCount = this.activeRows.length;
 	}
 	
@@ -764,28 +780,13 @@ export default class RowManager extends CoreFeature{
 		this.displayRowsCount = this.displayRows[0].length;
 	}
 	
-	getNextDisplayIndex(){
-		return this.displayRows.length;
-	}
-	
 	//set display row pipeline data
 	setDisplayRows(displayRows, index){
-		
-		var output = true;
-		
-		if(index && typeof this.displayRows[index] != "undefined"){
-			this.displayRows[index] = displayRows;
-			output = true;
-		}else{
-			this.displayRows.push(displayRows)
-			output = index = this.displayRows.length -1;
-		}
+		this.displayRows[index] = displayRows;
 		
 		if(index == this.displayRows.length -1){
 			this.displayRowsCount = this.displayRows[this.displayRows.length -1].length;
 		}
-		
-		return output;
 	}
 	
 	getDisplayRows(index){
@@ -806,7 +807,7 @@ export default class RowManager extends CoreFeature{
 		return rows;
 	}
 	
-	//repeat action accross display rows
+	//repeat action across display rows
 	displayRowIterator(callback){
 		this.activeRowsPipeline.forEach(callback);
 		this.displayRows.forEach(callback);
@@ -816,23 +817,23 @@ export default class RowManager extends CoreFeature{
 	
 	//return only actual rows (not group headers etc)
 	getRows(type){
-		var rows;
+		var rows = [];
 		
 		switch(type){
 			case "active":
-			rows = this.activeRows;
-			break;
+				rows = this.activeRows;
+				break;
 			
 			case "display":
-			rows = this.table.rowManager.getDisplayRows();
-			break;
+				rows = this.table.rowManager.getDisplayRows();
+				break;
 			
 			case "visible":
-			rows = this.getVisibleRows(false, true);
-			break;
+				rows = this.getVisibleRows(false, true);
+				break;
 			
 			default:
-			rows = this.chain("rows-retrieve", type, null, this.rows) || this.rows;
+				rows = this.chain("rows-retrieve", type, null, this.rows) || this.rows;
 		}
 		
 		return rows;
@@ -848,7 +849,31 @@ export default class RowManager extends CoreFeature{
 				this.redrawBlockRenderInPosition = true;
 			}
 		}else{
+			this.dispatchExternal("renderStarted");
+			
 			this.renderer.rerenderRows(callback);
+			
+			if(!this.fixedHeight){
+				this.adjustTableSize();
+			}
+			
+			this.scrollBarCheck();
+			
+			this.dispatchExternal("renderComplete");
+		}
+	}
+	
+	scrollBarCheck(){
+		var scrollbarWidth = 0;
+		
+		//adjust for vertical scrollbar moving table when present
+		if(this.element.scrollHeight > this.element.clientHeight){
+			scrollbarWidth = this.element.offsetWidth - this.element.clientWidth;
+		}
+		
+		if(scrollbarWidth !== this.scrollbarWidth){
+			this.scrollbarWidth = scrollbarWidth;
+			this.dispatch("scrollbar-vertical", scrollbarWidth);
 		}
 	}
 	
@@ -867,16 +892,18 @@ export default class RowManager extends CoreFeature{
 		}
 		
 		if(renderClass){
+			this.renderMode = this.table.options.renderVertical;
+			
 			this.renderer = new renderClass(this.table, this.element, this.tableElement);
 			this.renderer.initialize();
 			
-			if((this.table.element.clientHeight || this.table.options.height)){
+			if((this.table.element.clientHeight || this.table.options.height) && !(this.table.options.minHeight && this.table.options.maxHeight)){
 				this.fixedHeight = true;
 			}else{
 				this.fixedHeight = false;
 			}
 		}else{
-			console.error("Unable to find matching renderer:", table.options.renderVertical);
+			console.error("Unable to find matching renderer:", this.table.options.renderVertical);
 		}
 	}
 	
@@ -896,7 +923,12 @@ export default class RowManager extends CoreFeature{
 			
 			if(this.firstRender){
 				this.firstRender = false;
-				this.layoutRefresh();
+				
+				if(!this.fixedHeight){
+					this.adjustTableSize();
+				}
+				
+				this.layoutRefresh(true);
 			}
 		}else{
 			this.renderEmptyScroll();
@@ -912,6 +944,8 @@ export default class RowManager extends CoreFeature{
 			this._showPlaceholder();
 		}
 		
+		this.scrollBarCheck();
+		
 		this.dispatchExternal("renderComplete");
 	}
 	
@@ -926,9 +960,7 @@ export default class RowManager extends CoreFeature{
 		}
 	}
 	
-	_clearTable(){
-		var element = this.tableElement;
-		
+	_clearTable(){	
 		this._clearPlaceholder();
 		
 		this.scrollTop = 0;
@@ -937,12 +969,33 @@ export default class RowManager extends CoreFeature{
 		this.renderer.clearRows();
 	}
 	
+	tableEmpty(){
+		this.renderEmptyScroll();
+		this._showPlaceholder();
+	}
+
+	checkPlaceholder(){
+		if(this.displayRowsCount){
+			this._clearPlaceholder();
+		}else{
+			this.tableEmpty();
+		}
+	}
+	
 	_showPlaceholder(){
 		if(this.placeholder){
+			if(this.placeholder && this.placeholder.parentNode){
+				this.placeholder.parentNode.removeChild(this.placeholder);
+			}
+			
+			this.initializePlaceholder();
+			
 			this.placeholder.setAttribute("tabulator-render-mode", this.renderMode);
 			
 			this.getElement().appendChild(this.placeholder);
 			this._positionPlaceholder();
+
+			this.adjustTableSize();
 		}
 	}
 	
@@ -950,6 +1003,10 @@ export default class RowManager extends CoreFeature{
 		if(this.placeholder && this.placeholder.parentNode){
 			this.placeholder.parentNode.removeChild(this.placeholder);
 		}
+		
+		// clear empty table placeholder min
+		this.tableElement.style.minWidth = "";
+		this.tableElement.style.display = "";
 	}
 	
 	_positionPlaceholder(){
@@ -973,27 +1030,31 @@ export default class RowManager extends CoreFeature{
 	}
 	
 	//normalize height of active rows
-	normalizeHeight(){
+	normalizeHeight(force){
 		this.activeRows.forEach(function(row){
-			row.normalizeHeight();
+			row.normalizeHeight(force);
 		});
 	}
 	
 	//adjust the height of the table holder to fit in the Tabulator element
 	adjustTableSize(){
-		var initialHeight = this.element.clientHeight,
-		modExists;
+		let initialHeight = this.element.clientHeight, minHeight;
+		let resized = false;
 		
 		if(this.renderer.verticalFillMode === "fill"){
 			let otherHeight =  Math.floor(this.table.columnManager.getElement().getBoundingClientRect().height + (this.table.footerManager && this.table.footerManager.active && !this.table.footerManager.external ? this.table.footerManager.getElement().getBoundingClientRect().height : 0));
 			
 			if(this.fixedHeight){
-				this.element.style.minHeight = "calc(100% - " + otherHeight + "px)";
-				this.element.style.height = "calc(100% - " + otherHeight + "px)";
-				this.element.style.maxHeight = "calc(100% - " + otherHeight + "px)";
-			}else{
+				minHeight = isNaN(this.table.options.minHeight) ? this.table.options.minHeight : this.table.options.minHeight + "px";
+				
+				const height = "calc(100% - " + otherHeight + "px)";
+				this.element.style.minHeight = minHeight || "calc(100% - " + otherHeight + "px)";
+				this.element.style.height = height;
+				this.element.style.maxHeight = height;
+			} else {
 				this.element.style.height = "";
-				this.element.style.height = (this.table.element.clientHeight - otherHeight) + "px";
+				this.element.style.height =
+				this.table.element.clientHeight - otherHeight + "px";
 				this.element.scrollTop = this.scrollTop;
 			}
 			
@@ -1001,18 +1062,26 @@ export default class RowManager extends CoreFeature{
 			
 			//check if the table has changed size when dealing with variable height tables
 			if(!this.fixedHeight && initialHeight != this.element.clientHeight){
-				if(this.subscribed("table-resize")){
-					this.dispatch("table-resize");
-				}else{
-					this.redraw();
+				resized = true;
+				if(!this.redrawing){ // prevent recursive redraws		
+					this.redrawing = true;
+					if(this.subscribed("table-resize")){
+						this.dispatch("table-resize");
+					}else{
+						this.redraw();
+					}
+					this.redrawing = false;
 				}
 			}
+			
+			this.scrollBarCheck();
 		}
-
+		
 		this._positionPlaceholder();
+		return resized;
 	}
 	
-	//renitialize all rows
+	//reinitialize all rows
 	reinitialize(){
 		this.rows.forEach(function(row){
 			row.reinitialize(true);
@@ -1030,7 +1099,7 @@ export default class RowManager extends CoreFeature{
 		this.redrawBlock = false;
 		
 		if(this.redrawBlockRestoreConfig){
-			this.refreshActiveData(this.redrawBlockRestoreConfig.handler, this.redrawBlockRestoreConfig.skipStage, this.redrawBlockRestoreConfig.renderInPosition)
+			this.refreshActiveData(this.redrawBlockRestoreConfig.handler, this.redrawBlockRestoreConfig.skipStage, this.redrawBlockRestoreConfig.renderInPosition);
 			
 			this.redrawBlockRestoreConfig = false;
 		}else{
@@ -1044,16 +1113,12 @@ export default class RowManager extends CoreFeature{
 	
 	//redraw table
 	redraw (force){
-		var pos = 0,
-		left = this.scrollLeft;
-		
 		this.adjustTableSize();
-		
 		this.table.tableWidth = this.table.element.clientWidth;
 		
-		if(!force){
+		if(!force){	
 			this.reRenderInPosition();
-			this.scrollHorizontal(left);
+			this.scrollHorizontal(this.scrollLeft);
 		}else{
 			this.renderTable();
 		}

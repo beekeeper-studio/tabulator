@@ -1,4 +1,4 @@
-@import "variables3.scss";
+@use "variables3.scss" as *;
 
 // Style conversion file, bootstrap to tabulator
 
@@ -7,9 +7,9 @@ $backgroundColor: $table-bg !default; //background color of tabulator
 $borderColor:$table-border-color !default; //border to tabulator
 $textSize:$font-size-base !default; //table text size
 
-//header themeing
+//header theming
 $headerBackgroundColor:#fff !default; //border to tabulator
-$headerSeperatorColor:$table-border-color !default; //header bottom seperator color
+$headerSeparatorColor:$table-border-color !default; //header bottom separator color
 
 $cellPadding:$table-cell-padding !default; //padding round header
 $cellPaddingCondensed:$table-condensed-cell-padding !default; //padding round header
@@ -18,7 +18,7 @@ $cellPaddingCondensed:$table-condensed-cell-padding !default; //padding round he
 $sortArrowActive: #666 !default;
 $sortArrowInactive: #bbb !default;
 
-//row themeing
+//row theming
 $rowBackgroundColor:$backgroundColor !default; //table row background color
 $rowAltBackgroundColor:$table-bg-accent !default; //table row background color
 $rowBorderColor:$table-border-color !default; //table border color
@@ -31,12 +31,12 @@ $rowSelectedBackgroundHover: #769BCC !default;//row background color when select
 $editBoxColor:#1D68CD !default; //border color for edit boxes
 $errorColor:#dd0000 !default; //error indication
 
-//footer themeing
+//footer theming
 $footerBorderColor:$table-border-color !default; //footer border color
-$footerSeperatorColor:$table-border-color !default; //footer bottom seperator color
+$footerSeparatorColor:$table-border-color !default; //footer bottom separator color
 $footerActiveColor:#d00 !default; //footer bottom active text color
 
-@import "../../tabulator.scss";
+@use "../../tabulator.scss";
 
 .tabulator{
 	background-color: $backgroundColor;
@@ -44,7 +44,7 @@ $footerActiveColor:#d00 !default; //footer bottom active text color
 	border:none;
 
 	.tabulator-header{
-		border-bottom:2px solid $headerSeperatorColor;
+		border-bottom:2px solid $headerSeparatorColor;
 		background-color: $headerBackgroundColor;
 		color:inherit;
 
@@ -65,7 +65,7 @@ $footerActiveColor:#d00 !default; //footer bottom active text color
 
 		.tabulator-calcs-holder{
 			width:100%;
-			border-bottom:1px solid $headerSeperatorColor;
+			border-bottom:1px solid $headerSeparatorColor;
 		}
 	}
 
@@ -82,12 +82,20 @@ $footerActiveColor:#d00 !default; //footer bottom active text color
 	}
 
 	.tabulator-footer{
-		border-top:2px solid $footerSeperatorColor;
+		border-top:2px solid $footerSeparatorColor;
 		background: inherit;
 
 		.tabulator-calcs-holder{
 			border-bottom:1px solid $rowBorderColor;
 			border-top:1px solid $rowBorderColor;
+		}
+
+		.tabulator-spreadsheet-tabs{
+			.tabulator-spreadsheet-tab{
+				&.tabulator-spreadsheet-tab-active{
+					color:$footerActiveColor;
+				}
+			}
 		}
 
 		.tabulator-paginator{
@@ -99,7 +107,7 @@ $footerActiveColor:#d00 !default; //footer bottom active text color
 
 	&.table-striped{
 		.tabulator-row{
-			&:nth-child(even){
+			&.tabulator-row-even{
 				background-color: $rowAltBackgroundColor;
 			}
 		}
@@ -181,22 +189,32 @@ $footerActiveColor:#d00 !default; //footer bottom active text color
 		background-color: transparent;
 	}
 
-	&.tabulator-selectable:hover{
-		background-color:$rowHoverBackground !important;
+	@media (hover:hover) and (pointer:fine){
+		&.tabulator-selectable:hover{
+			background-color:$rowHoverBackground !important;
+		}
 	}
 
 	&.tabulator-selected{
 		background-color:$rowSelectedBackground !important;
 	}
 
-	&.tabulator-selected:hover{
-		background-color:$rowSelectedBackgroundHover !important;
-		cursor: pointer;
+	@media (hover:hover) and (pointer:fine){
+		&.tabulator-selected:hover{
+			background-color:$rowSelectedBackgroundHover !important;
+			cursor: pointer;
+		}
 	}
 
 	.tabulator-cell{
 		padding:$cellPadding;
 		border-right:none;
+
+		&.tabulator-row-header{
+			border-right:1px solid $borderColor;
+			border-bottom:none;
+			background:$headerBackgroundColor;
+		}
 
 		&:last-of-type{
 			border-right: none;

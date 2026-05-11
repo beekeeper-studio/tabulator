@@ -2,7 +2,7 @@ import Helpers from '../../core/tools/Helpers.js';
 import GroupComponent from './GroupComponent.js';
 
 //Group functions
-class Group{
+export default class Group{
 	
 	constructor(groupManager, parent, level, key, field, generator, oldGroup){
 		this.groupManager = groupManager;
@@ -38,17 +38,19 @@ class Group{
 		this.createValueGroups();
 	}
 	
-	wipe(){
-		if(this.groupList.length){
-			this.groupList.forEach(function(group){
-				group.wipe();
-			});
-		}else{
-			this.rows.forEach((row) => {
-				if(row.modules){
-					delete row.modules.group;
-				}
-			});
+	wipe(elementsOnly){
+		if(!elementsOnly){
+			if(this.groupList.length){
+				this.groupList.forEach(function(group){
+					group.wipe();
+				});
+			}else{
+				this.rows.forEach((row) => {
+					if(row.modules){
+						delete row.modules.group;
+					}
+				});
+			}
 		}
 		
 		this.element = false;
@@ -92,9 +94,15 @@ class Group{
 			toggleElement = this.groupManager.table.options.groupToggleElement == "arrow" ? this.arrowElement : this.element;
 			
 			toggleElement.addEventListener("click", (e) => {
-				e.stopPropagation();
-				e.stopImmediatePropagation();
-				this.toggleVisibility();
+				if(this.groupManager.table.options.groupToggleElement === "arrow"){
+					e.stopPropagation();
+					e.stopImmediatePropagation();
+				}
+
+				//allow click event to propagate before toggling visibility
+				setTimeout(() => {
+					this.toggleVisibility();
+				});
 			});
 		}
 	}
@@ -157,7 +165,7 @@ class Group{
 		
 		row.modules.group = this;
 		
-		this.generateGroupHeaderContents();
+		// this.generateGroupHeaderContents();
 		
 		if(this.groupManager.table.modExists("columnCalcs") && this.groupManager.table.options.columnCalcs != "table"){
 			this.groupManager.table.modules.columnCalcs.recalcGroup(this);
@@ -178,7 +186,7 @@ class Group{
 	
 	getRowIndex(row){}
 	
-	//update row data to match grouping contraints
+	//update row data to match grouping constraints
 	conformRowData(data){
 		if(this.field){
 			data[this.field] = this.key;
@@ -197,7 +205,6 @@ class Group{
 		var index = this.rows.indexOf(row);
 		var el = row.getElement();
 		
-		
 		if(index > -1){
 			this.rows.splice(index, 1);
 		}
@@ -207,19 +214,22 @@ class Group{
 				this.parent.removeGroup(this);
 			}else{
 				this.groupManager.removeGroup(this);
-			}
+			}		
 			
 			this.groupManager.updateGroupRows(true);
+			
 		}else{
 			
 			if(el.parentNode){
 				el.parentNode.removeChild(el);
 			}
 			
-			this.generateGroupHeaderContents();
-			
-			if(this.groupManager.table.modExists("columnCalcs") && this.groupManager.table.options.columnCalcs != "table"){
-				this.groupManager.table.modules.columnCalcs.recalcGroup(this);
+			if(!this.groupManager.blockRedraw){
+				this.generateGroupHeaderContents();
+				
+				if(this.groupManager.table.modExists("columnCalcs") && this.groupManager.table.options.columnCalcs != "table"){
+					this.groupManager.table.modules.columnCalcs.recalcGroup(this);
+				}
 			}
 			
 		}
@@ -248,38 +258,41 @@ class Group{
 		}
 	}
 	
-	getHeadersAndRows(noCalc){
+	getHeadersAndRows(){
 		var output = [];
 		
 		output.push(this);
 		
 		this._visSet();
 		
+		
+		if(this.calcs.top){
+			this.calcs.top.detachElement();
+			this.calcs.top.deleteCells();
+		}
+		
+		if(this.calcs.bottom){
+			this.calcs.bottom.detachElement();
+			this.calcs.bottom.deleteCells();
+		}
+		
+		
+		
 		if(this.visible){
 			if(this.groupList.length){
 				this.groupList.forEach(function(group){
-					output = output.concat(group.getHeadersAndRows(noCalc));
+					output = output.concat(group.getHeadersAndRows());
 				});
 				
 			}else{
-				if(!noCalc && this.groupManager.table.options.columnCalcs != "table" && this.groupManager.table.modExists("columnCalcs") && this.groupManager.table.modules.columnCalcs.hasTopCalcs()){
-					if(this.calcs.top){
-						this.calcs.top.detachElement();
-						this.calcs.top.deleteCells();
-					}
-					
+				if(this.groupManager.table.options.columnCalcs != "table" && this.groupManager.table.modExists("columnCalcs") && this.groupManager.table.modules.columnCalcs.hasTopCalcs()){
 					this.calcs.top = this.groupManager.table.modules.columnCalcs.generateTopRow(this.rows);
 					output.push(this.calcs.top);
 				}
 				
 				output = output.concat(this.rows);
 				
-				if(!noCalc && this.groupManager.table.options.columnCalcs != "table" &&  this.groupManager.table.modExists("columnCalcs") && this.groupManager.table.modules.columnCalcs.hasBottomCalcs()){
-					if(this.calcs.bottom){
-						this.calcs.bottom.detachElement();
-						this.calcs.bottom.deleteCells();
-					}
-					
+				if(this.groupManager.table.options.columnCalcs != "table" &&  this.groupManager.table.modExists("columnCalcs") && this.groupManager.table.modules.columnCalcs.hasBottomCalcs()){
 					this.calcs.bottom = this.groupManager.table.modules.columnCalcs.generateBottomRow(this.rows);
 					output.push(this.calcs.bottom);
 				}
@@ -288,25 +301,14 @@ class Group{
 			if(!this.groupList.length && this.groupManager.table.options.columnCalcs != "table"){
 				
 				if(this.groupManager.table.modExists("columnCalcs")){
-					
-					if(!noCalc && this.groupManager.table.modules.columnCalcs.hasTopCalcs()){
-						if(this.calcs.top){
-							this.calcs.top.detachElement();
-							this.calcs.top.deleteCells();
-						}
-						
+					if(this.groupManager.table.modules.columnCalcs.hasTopCalcs()){
 						if(this.groupManager.table.options.groupClosedShowCalcs){
 							this.calcs.top = this.groupManager.table.modules.columnCalcs.generateTopRow(this.rows);
 							output.push(this.calcs.top);
 						}
 					}
 					
-					if(!noCalc && this.groupManager.table.modules.columnCalcs.hasBottomCalcs()){
-						if(this.calcs.bottom){
-							this.calcs.bottom.detachElement();
-							this.calcs.bottom.deleteCells();
-						}
-						
+					if(this.groupManager.table.modules.columnCalcs.hasBottomCalcs()){						
 						if(this.groupManager.table.options.groupClosedShowCalcs){
 							this.calcs.bottom = this.groupManager.table.modules.columnCalcs.generateBottomRow(this.rows);
 							output.push(this.calcs.bottom);
@@ -346,6 +348,7 @@ class Group{
 		}
 		return count;
 	}
+
 	
 	toggleVisibility(){
 		if(this.visible){
@@ -358,7 +361,7 @@ class Group{
 	hide(){
 		this.visible = false;
 		
-		if(this.groupManager.table.rowManager.getRenderMode() == "classic" && !this.groupManager.table.options.pagination){
+		if(this.groupManager.table.rowManager.getRenderMode() == "basic" && !this.groupManager.table.options.pagination){
 			
 			this.element.classList.remove("tabulator-group-visible");
 			
@@ -379,9 +382,7 @@ class Group{
 				});
 			}
 			
-			this.groupManager.table.rowManager.setDisplayRows(this.groupManager.updateGroupRows(), this.groupManager.getDisplayIndex());
-			
-			this.groupManager.table.rowManager.checkClassicModeGroupHeaderWidth();
+			this.groupManager.updateGroupRows(true);
 			
 		}else{
 			this.groupManager.updateGroupRows(true);
@@ -393,7 +394,7 @@ class Group{
 	show(){
 		this.visible = true;
 		
-		if(this.groupManager.table.rowManager.getRenderMode() == "classic" && !this.groupManager.table.options.pagination){
+		if(this.groupManager.table.rowManager.getRenderMode() == "basic" && !this.groupManager.table.options.pagination){
 			
 			this.element.classList.add("tabulator-group-visible");
 			
@@ -420,9 +421,7 @@ class Group{
 				});
 			}
 			
-			this.groupManager.table.rowManager.setDisplayRows(this.groupManager.updateGroupRows(), this.groupManager.getDisplayIndex());
-			
-			this.groupManager.table.rowManager.checkClassicModeGroupHeaderWidth();
+			this.groupManager.updateGroupRows(true);
 		}else{
 			this.groupManager.updateGroupRows(true);
 		}
@@ -474,12 +473,18 @@ class Group{
 		return output;
 	}
 	
-	getRows(compoment){
+	getRows(component, includeChildren){
 		var output = [];
 		
-		this.rows.forEach(function(row){
-			output.push(compoment ? row.getComponent() : row);
-		});
+		if(includeChildren && this.groupList.length){
+			this.groupList.forEach((group) => {
+				output = output.concat(group.getRows(component, includeChildren));
+			});
+		}else{
+			this.rows.forEach(function(row){
+				output.push(component ? row.getComponent() : row);
+			});
+		}
 		
 		return output;
 	}
@@ -487,7 +492,9 @@ class Group{
 	generateGroupHeaderContents(){
 		var data = [];
 		
-		this.rows.forEach(function(row){
+		var rows = this.getRows(false, true);
+		
+		rows.forEach(function(row){
 			data.push(row.getData());
 		});
 		
@@ -592,6 +599,8 @@ class Group{
 	clearCellHeight(){}
 	
 	deinitializeHeight(){}
+
+	rendered(){}
 	
 	//////////////// Object Generation /////////////////
 	getComponent(){
@@ -602,5 +611,3 @@ class Group{
 		return this.component;
 	}
 }
-
-export default Group;

@@ -1,6 +1,8 @@
 import Module from '../../core/Module.js';
 
-class Popup extends Module{
+export default class Popup extends Module{
+	
+	static moduleName = "popup";
 	
 	constructor(table){
 		super(table);
@@ -9,15 +11,24 @@ class Popup extends Module{
 		
 		this.registerTableOption("rowContextPopup", false);
 		this.registerTableOption("rowClickPopup", false);
+		this.registerTableOption("rowDblClickPopup", false);
 		this.registerTableOption("groupContextPopup", false);
 		this.registerTableOption("groupClickPopup", false);
+		this.registerTableOption("groupDblClickPopup", false);
 		
 		this.registerColumnOption("headerContextPopup");
 		this.registerColumnOption("headerClickPopup");
+		this.registerColumnOption("headerDblClickPopup");
 		this.registerColumnOption("headerPopup");
 		this.registerColumnOption("headerPopupIcon");
 		this.registerColumnOption("contextPopup");
 		this.registerColumnOption("clickPopup");
+		this.registerColumnOption("dblClickPopup");
+
+		this.registerComponentFunction("cell", "popup", this._componentPopupCall.bind(this));
+		this.registerComponentFunction("column", "popup", this._componentPopupCall.bind(this));
+		this.registerComponentFunction("row", "popup", this._componentPopupCall.bind(this));
+		this.registerComponentFunction("group", "popup", this._componentPopupCall.bind(this));
 		
 	}
 	
@@ -26,6 +37,10 @@ class Popup extends Module{
 		this.initializeGroupWatchers();
 		
 		this.subscribe("column-init", this.initializeColumn.bind(this));
+	}
+
+	_componentPopupCall(component, contents, position){
+		this.loadPopupEvent(contents, null, component, position);
 	}
 	
 	initializeRowWatchers(){
@@ -36,6 +51,10 @@ class Popup extends Module{
 		
 		if(this.table.options.rowClickPopup){
 			this.subscribe("row-click", this.loadPopupEvent.bind(this, this.table.options.rowClickPopup));
+		}
+
+		if(this.table.options.rowDblClickPopup){
+			this.subscribe("row-dblclick", this.loadPopupEvent.bind(this, this.table.options.rowDblClickPopup));
 		}
 	}
 	
@@ -48,22 +67,30 @@ class Popup extends Module{
 		if(this.table.options.groupClickPopup){
 			this.subscribe("group-click", this.loadPopupEvent.bind(this, this.table.options.groupClickPopup));
 		}
+
+		if(this.table.options.groupDblClickPopup){
+			this.subscribe("group-dblclick", this.loadPopupEvent.bind(this, this.table.options.groupDblClickPopup));
+		}
 	}
-	
+
 	initializeColumn(column){
-		var options = ["headerContextPopup", "headerClickPopup"],
-		def = column.definition;
+		var def = column.definition;
 		
 		//handle column events
 		if(def.headerContextPopup && !this.columnSubscribers.headerContextPopup){
 			this.columnSubscribers.headerContextPopup = this.loadPopupTableColumnEvent.bind(this, "headerContextPopup");
 			this.subscribe("column-contextmenu", this.columnSubscribers.headerContextPopup);
-			this.table.on("headerTapHold", this.loadPopupTableColumnEvent.bind(this, "headerContextPopup"))
+			this.table.on("headerTapHold", this.loadPopupTableColumnEvent.bind(this, "headerContextPopup"));
 		}
 		
 		if(def.headerClickPopup && !this.columnSubscribers.headerClickPopup){
 			this.columnSubscribers.headerClickPopup = this.loadPopupTableColumnEvent.bind(this, "headerClickPopup");
 			this.subscribe("column-click", this.columnSubscribers.headerClickPopup);
+		
+		
+		}if(def.headerDblClickPopup && !this.columnSubscribers.headerDblClickPopup){
+			this.columnSubscribers.headerDblClickPopup = this.loadPopupTableColumnEvent.bind(this, "headerDblClickPopup");
+			this.subscribe("column-dblclick", this.columnSubscribers.headerDblClickPopup);
 		}
 		
 		if(def.headerPopup){
@@ -74,12 +101,17 @@ class Popup extends Module{
 		if(def.contextPopup && !this.columnSubscribers.contextPopup){
 			this.columnSubscribers.contextPopup = this.loadPopupTableCellEvent.bind(this, "contextPopup");
 			this.subscribe("cell-contextmenu", this.columnSubscribers.contextPopup);
-			this.table.on("cellTapHold", this.loadPopupTableCellEvent.bind(this, "contextPopup"))
+			this.table.on("cellTapHold", this.loadPopupTableCellEvent.bind(this, "contextPopup"));
 		}
 		
 		if(def.clickPopup && !this.columnSubscribers.clickPopup){
 			this.columnSubscribers.clickPopup = this.loadPopupTableCellEvent.bind(this, "clickPopup");
 			this.subscribe("cell-click", this.columnSubscribers.clickPopup);
+		}
+
+		if(def.dblClickPopup && !this.columnSubscribers.dblClickPopup){
+			this.columnSubscribers.dblClickPopup = this.loadPopupTableCellEvent.bind(this, "dblClickPopup");
+			this.subscribe("cell-click", this.columnSubscribers.dblClickPopup);
 		}
 	}
 	
@@ -134,7 +166,7 @@ class Popup extends Module{
 		}
 	}
 	
-	loadPopupEvent(contents, e, component){
+	loadPopupEvent(contents, e, component, position){
 		var renderedCallback;
 
 		function onRendered(callback){
@@ -149,10 +181,10 @@ class Popup extends Module{
 		
 		contents = typeof contents == "function" ? contents.call(this.table, e, component.getComponent(),  onRendered) : contents;
 		
-		this.loadPopup(e, component, contents, renderedCallback);
+		this.loadPopup(e, component, contents, renderedCallback, position);
 	}
 	
-	loadPopup(e, component, contents, renderedCallback){
+	loadPopup(e, component, contents, renderedCallback, position){
 		var touch = !(e instanceof MouseEvent),
 		contentsEl, popup;
 		
@@ -178,17 +210,18 @@ class Popup extends Module{
 		if(typeof renderedCallback === "function"){
 			popup.renderCallback(renderedCallback);
 		}
+
+		if(e){
+			popup.show(e);
+		}else{
+			popup.show(component.getElement(), position || "center");
+		}
+
 		
-		popup.show(e).hideOnBlur(() => {
+		popup.hideOnBlur(() => {
 			this.dispatchExternal("popupClosed", component.getComponent());
 		});
 
-
-
-		this.dispatchExternal("popupOpened", component.getComponent())
+		this.dispatchExternal("popupOpened", component.getComponent());
 	}
 }
-
-Popup.moduleName = "popup";
-
-export default Popup;

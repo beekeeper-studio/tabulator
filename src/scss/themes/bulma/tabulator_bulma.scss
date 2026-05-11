@@ -1,4 +1,5 @@
-@import "variables.scss";
+@use "variables.scss" as *;
+@use "sass:color";
 
 // Style conversion file, bulma to tabulator
 
@@ -7,18 +8,18 @@ $backgroundColor: $table-background-color !default; //background color of tabula
 // $borderColor:#999 !default; //border to tabulator
 $textSize:16px !default; //table text size
 
-//header themeing
+//header theming
 $headerBackgroundColor:$table-head-background-color !default; //border to tabulator
-$headerTextColor:$table-head-cell-color !default; //header text colour
+$headerTextColor:$table-head-cell-color !default; //header text color
 $headerBorderColor:#aaa !default;  //header border color
-$headerSeperatorColor:#999 !default; //header bottom seperator color
+$headerSeparatorColor:#999 !default; //header bottom separator color
 $headerMargin:4px !default; //padding round header
 
 //column header arrows
 $sortArrowActive: $headerTextColor !default;
 $sortArrowInactive: #bbb !default;
 
-//row themeing
+//row theming
 $rowBackgroundColor:$table-body-background-color !default; //table row background color
 $rowAltBackgroundColor:$table-striped-row-even-background-color !default; //table row background color
 $rowBorderColor:#aaa !default; //table border color
@@ -31,56 +32,88 @@ $rowSelectedBackground: $table-row-active-background-color !default; //row backg
 $editBoxColor:#1D68CD !default; //border color for edit boxes
 $errorColor:#dd0000 !default; //error indication
 
-//footer themeing
+//footer theming
 $footerBackgroundColor:$table-foot-background-color !default; //border to tabulator
-$footerTextColor:$table-foot-cell-color !default; //footer text colour
+$footerTextColor:$table-foot-cell-color !default; //footer text color
 $footerBorderColor:$grey-lighter !default; //footer border color
-// $footerSeperatorColor:#999 !default; //footer bottom seperator color
+// $footerSeparatorColor:#999 !default; //footer bottom separator color
 // $footerActiveColor:#d00 !default; //footer bottom active text color
 
-@import "../../tabulator.scss";
+//range selection
+$rangeBorderColor: #{color.adjust($rowSelectedBackground, $lightness: -10%)} !default; //range border color
+$rangeHandleColor: $rangeBorderColor !default; //range handle color
+$rangeHeaderSelectedBackground: $rangeBorderColor !default; //header background color when selected
+$rangeHeaderSelectedTextColor: #FFFFFF !default; //header text color when selected
+
+
+@use "../../tabulator.scss" with (
+	$backgroundColor: $backgroundColor,
+	$textSize: $textSize,
+	$headerBackgroundColor: $headerBackgroundColor,
+	$headerTextColor: $headerTextColor,
+	$headerBorderColor: $headerBorderColor,
+	$headerSeparatorColor: $headerSeparatorColor,
+	$headerMargin: $headerMargin,
+	$sortArrowActive: $sortArrowActive,
+	$sortArrowInactive: $sortArrowInactive,
+	$rowBackgroundColor: $rowBackgroundColor,
+	$rowAltBackgroundColor: $rowAltBackgroundColor,
+	$rowBorderColor: $rowBorderColor,
+	$rowTextColor: $rowTextColor,
+	$rowHoverBackground: $rowHoverBackground,
+	$rowSelectedBackground: $rowSelectedBackground,
+	$editBoxColor: $editBoxColor,
+	$errorColor: $errorColor,
+	$footerBackgroundColor: $footerBackgroundColor,
+	$footerTextColor: $footerTextColor,
+	$footerBorderColor: $footerBorderColor,
+	$rangeBorderColor: $rangeBorderColor,
+	$rangeHandleColor: $rangeHandleColor,
+	$rangeHeaderSelectedBackground: $rangeHeaderSelectedBackground,
+	$rangeHeaderSelectedTextColor: $rangeHeaderSelectedTextColor
+);
 
 .tabulator{
 	border:none;
-
+	
 	.tabulator-header{
 		border:$table-cell-border;
 		border-width:$table-head-cell-border-width;
-
+		
 		.tabulator-col{
 			border-right:none;
-
+			
 			&.tabulator-moving{
 				border:none;
 			}
-
+			
 			.tabulator-col-content{
 				padding:$table-cell-padding;
-
+				
 				.tabulator-col-sorter{
 					right:0px;
 				}
 			}
-
+			
 			.tabulator-header-filter{
 				input{
 					border:$button-border-width solid $button-border-color;
 				}
 			}
 		}
-
+		
 		.tabulator-calcs-holder{
 			.tabulator-row{
 				.tabulator-cell{
 					border-bottom-width:0;
 				}
 			}
-
+			
 			border:$table-cell-border;
 			border-width:$table-foot-cell-border-width;
 		}
 	}
-
+	
 	.tabulator-tableholder{
 		.tabulator-table{
 			.tabulator-row{
@@ -89,12 +122,12 @@ $footerBorderColor:$grey-lighter !default; //footer border color
 						border:$table-cell-border;
 						border-width:$table-head-cell-border-width;
 					}
-
+					
 					&.tabulator-calcs-bottom{
 						border:$table-cell-border;
 						border-width:$table-foot-cell-border-width;
 					}
-
+					
 					.tabulator-cell{
 						border-bottom-width:0;
 					}
@@ -102,18 +135,18 @@ $footerBorderColor:$grey-lighter !default; //footer border color
 			}
 		}
 	}
-
+	
 	.tabulator-footer{
 		padding:$table-cell-padding;
 		border:$table-cell-border;
 		border-width:$table-foot-cell-border-width;
-
+		
 		.tabulator-calcs-holder{
 			margin:-5px -10px 10px -10px;
-
+			
 			border:$table-cell-border;
 			border-width:$table-head-cell-border-width;
-
+			
 			.tabulator-row{
 				.tabulator-cell{
 					border-bottom-width:0;
@@ -121,33 +154,52 @@ $footerBorderColor:$grey-lighter !default; //footer border color
 			}
 		}
 
+		.tabulator-spreadsheet-tabs{
+			margin-top: calc( -0.5em - 5px);
+
+			.tabulator-spreadsheet-tab{
+				// background-color: $spreadsheetActiveTabColor;
+				border-color: $button-border-color;
+				font-weight: normal;
+
+				&.tabulator-spreadsheet-tab-active{
+					// background-color:$pagination-active-bg;
+					border-color:$button-active-border-color;
+					color:$button-active-color;
+					font-weight:bold;
+				}
+			}
+		}
+		
 		.tabulator-page{
 			margin:0 0.1875em;
 			padding:$button-padding-vertical $button-padding-horizontal;
-
+			
 			border:$button-border-width solid $button-border-color;
-
+			
 			font-size: $textSize;
-
+			
 			&.active{
 				border-color:$button-active-border-color;
 				color:$button-active-color;
 				font-weight:bold;
 			}
-
+			
 			&:not(.disabled){
-				&:hover{
-					cursor:pointer;
-					border-color:$button-hover-border-color;
-					background:inherit;
-					color:inherit;
+				@media (hover:hover) and (pointer:fine){
+					&:hover{
+						cursor:pointer;
+						border-color:$button-hover-border-color;
+						background:inherit;
+						color:inherit;
+					}
 				}
 			}
 		}
 	}
-
+	
 	//Bulma theming classes
-
+	
 	&.is-striped{
 		.tabulator-row{
 			&:nth-child(even){
@@ -155,16 +207,16 @@ $footerBorderColor:$grey-lighter !default; //footer border color
 			}
 		}
 	}
-
+	
 	&.is-bordered{
 		border:$table-cell-border;
-
+		
 		.tabulator-header{
 			.tabulator-col{
 				border-right:$table-cell-border;
 			}
 		}
-
+		
 		.tabulator-tableholder{
 			.tabulator-table{
 				.tabulator-row{
@@ -175,7 +227,7 @@ $footerBorderColor:$grey-lighter !default; //footer border color
 			}
 		}
 	}
-
+	
 	&.is-narrow{
 		.tabulator-header{
 			.tabulator-col{
@@ -184,7 +236,7 @@ $footerBorderColor:$grey-lighter !default; //footer border color
 				}
 			}
 		}
-
+		
 		.tabulator-tableholder{
 			.tabulator-table{
 				.tabulator-row{
@@ -199,25 +251,34 @@ $footerBorderColor:$grey-lighter !default; //footer border color
 
 .tabulator-row{
 	min-height:14px + ($headerMargin * 2);
-
+	
 	&.tabulator-row-even{
 		background-color: inherit;
 	}
-
+	
 	&.tabulator-selected{
 		background-color:$rowSelectedBackground !important;
 	}
-
-	&.tabulator-selected:hover{
-		background-color:darken($rowSelectedBackground, 10%) !important;
+	
+	@media (hover:hover) and (pointer:fine){
+		&.tabulator-selected:hover{
+			background-color:color.adjust($rowSelectedBackground, $lightness: -10%) !important;
+		}
 	}
-
+	
 	.tabulator-cell{
 		padding:$table-cell-padding;
 		border:$table-cell-border;
 		border-width:$table-cell-border-width;
-	}
 
+		&.tabulator-row-header{
+			border:$table-cell-border;
+			border-width:$table-cell-border-width;
+			border-right-width: 1px;
+			background:$headerBackgroundColor;
+		}
+	}
+	
 	&.tabulator-group{
 		border-bottom:1px solid #999;
 		border-right:none;
@@ -236,3 +297,20 @@ $footerBorderColor:$grey-lighter !default; //footer border color
 	}
 }
 
+.tabulator-popup-container{
+	background: $backgroundColor,
+}
+
+.tabulator-edit-list{
+	.tabulator-edit-list-item{
+		&.active{
+			color:$backgroundColor;
+		}
+
+		@media (hover:hover) and (pointer:fine){
+			&:hover{
+				color:$backgroundColor;
+			}
+		}
+	}
+}

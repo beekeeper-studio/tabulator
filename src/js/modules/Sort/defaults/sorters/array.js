@@ -1,52 +1,76 @@
+import Helpers from '../../../../core/tools/Helpers.js';
+
 //sort if element contains any data
 export default function(a, b, aRow, bRow, column, dir, params){
-	var el1 = 0;
-	var el2 = 0;
-	var type = params.type || "length";
-	var alignEmptyValues = params.alignEmptyValues;
-	var emptyAlign = 0;
+	var type = params.type || "length",
+	alignEmptyValues = params.alignEmptyValues,
+	emptyAlign = 0,
+	table = this.table,
+	valueMap;
+
+	if(params.valueMap){
+		if(typeof params.valueMap === "string"){
+			valueMap = function(value){
+				return value.map((item) => {
+					return Helpers.retrieveNestedData(table.options.nestedFieldSeparator, params.valueMap, item);
+				});
+			};
+		}else{
+			valueMap = params.valueMap;
+		}
+	}
 
 	function calc(value){
+		var result;
+		
+		if(valueMap){
+			value = valueMap(value);
+		}
 
 		switch(type){
 			case "length":
-			return value.length;
-			break;
+				result = value.length;
+				break;
 
 			case "sum":
-			return value.reduce(function(c, d){
-				return c + d;
-			});
-			break;
+				result = value.reduce(function(c, d){
+					return c + d;
+				});
+				break;
 
 			case "max":
-			return Math.max.apply(null, value) ;
-			break;
+				result = Math.max.apply(null, value) ;
+				break;
 
 			case "min":
-			return Math.min.apply(null, value) ;
-			break;
+				result = Math.min.apply(null, value) ;
+				break;
 
 			case "avg":
-			return value.reduce(function(c, d){
-				return c + d;
-			}) / value.length;
-			break;
+				result = value.reduce(function(c, d){
+					return c + d;
+				}) / value.length;
+				break;
+
+			case "string":
+				result = value.join("");
+				break;
 		}
+
+		return result;
 	}
 
 	//handle non array values
 	if(!Array.isArray(a)){
-		alignEmptyValues = !Array.isArray(b) ? 0 : -1;
+		emptyAlign = !Array.isArray(b) ? 0 : -1;
 	}else if(!Array.isArray(b)){
-		alignEmptyValues = 1;
+		emptyAlign = 1;
 	}else{
-
-		//compare valid values
-		el1 = a ? calc(a) : 0;
-		el2 = b ? calc(b) : 0;
-
-		return el1 - el2;
+		if(type === "string"){
+			return String(calc(a)).toLowerCase().localeCompare(String(calc(b)).toLowerCase());
+		}else{
+			return calc(b) - calc(a);
+		}
 	}
 
 	//fix empty values in position
@@ -55,4 +79,4 @@ export default function(a, b, aRow, bRow, column, dir, params){
 	}
 
 	return emptyAlign;
-};
+}

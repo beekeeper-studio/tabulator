@@ -1,5 +1,3 @@
-import Column from './Column.js';
-
 //public column object
 export default class ColumnComponent {
 	constructor (column){
@@ -11,10 +9,10 @@ export default class ColumnComponent {
 				if (typeof target[name] !== "undefined") {
 					return target[name];
 				}else{
-					return target._column.table.componentFunctionBinder.handle("column", target._column, name)
+					return target._column.table.componentFunctionBinder.handle("column", target._column, name);
 				}
 			}
-		})
+		});
 	}
 
 	getElement(){
@@ -92,15 +90,15 @@ export default class ColumnComponent {
 	}
 
 	getParentColumn(){
-		return this._column.parent instanceof Column ? this._column.parent.getComponent() : false;
+		return this._column.getParentComponent();
 	}
 
 	_getSelf(){
 		return this._column;
 	}
 
-	scrollTo(){
-		return this._column.table.columnManager.scrollToColumn(this._column);
+	scrollTo(position, ifVisible){
+		return this._column.table.columnManager.scrollToColumn(this._column, position, ifVisible);
 	}
 
 	getTable(){
@@ -111,7 +109,7 @@ export default class ColumnComponent {
 		var toColumn = this._column.table.columnManager.findColumn(to);
 
 		if(toColumn){
-			this._column.table.columnManager.moveColumn(this._column, toColumn, after)
+			this._column.table.columnManager.moveColumn(this._column, toColumn, after);
 		}else{
 			console.warn("Move Error - No matching column found:", toColumn);
 		}
@@ -146,7 +144,7 @@ export default class ColumnComponent {
 			result =  this._column.setWidth(width);
 		}
 
-		this._column.table.columnManager.renderer.rerenderColumns(true);
+		this._column.table.columnManager.rerenderColumns(true);
 
 		return result;
 	}

@@ -1,5 +1,5 @@
 //public group object
-class GroupComponent {
+export default class GroupComponent {
 	constructor (group){
 		this._group = group;
 		this.type = "GroupComponent";
@@ -9,10 +9,10 @@ class GroupComponent {
 				if (typeof target[name] !== "undefined") {
 					return target[name];
 				}else{
-					return target._group.groupManager.table.componentFunctionBinder.handle("row", target._group, name)
+					return target._group.groupManager.table.componentFunctionBinder.handle("group", target._group, name);
 				}
 			}
-		})
+		});
 	}
 
 	getKey(){
@@ -55,6 +55,10 @@ class GroupComponent {
 		this._group.toggleVisibility();
 	}
 
+	scrollTo(position, ifVisible){
+		return this._group.groupManager.table.rowManager.scrollToRow(this._group, position, ifVisible);
+	}
+
 	_getSelf(){
 		return this._group;
 	}
@@ -63,5 +67,3 @@ class GroupComponent {
 		return this._group.groupManager.table;
 	}
 }
-
-export default GroupComponent;

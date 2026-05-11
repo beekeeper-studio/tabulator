@@ -3,7 +3,15 @@ import Module from '../../core/Module.js';
 import defaultReaders from './defaults/readers.js';
 import defaultWriters from './defaults/writers.js';
 
-class Persistence extends Module{
+export default class Persistence extends Module{
+
+	static moduleName = "persistence";
+
+	static moduleInitOrder = -10;
+
+	//load defaults
+	static readers = defaultReaders;
+	static writers = defaultWriters;
 
 	constructor(table){
 		super(table);
@@ -42,7 +50,7 @@ class Persistence extends Module{
 			//determine persistent layout storage type
 			var mode = this.table.options.persistenceMode,
 			id = this.table.options.persistenceID,
-			retreivedData;
+			retrievedData;
 
 			this.mode = mode !== true ?  mode : (this.localStorageTest() ? "local" : "cookie");
 
@@ -88,6 +96,7 @@ class Persistence extends Module{
 			this.config = {
 				sort:this.table.options.persistence === true || this.table.options.persistence.sort,
 				filter:this.table.options.persistence === true || this.table.options.persistence.filter,
+				headerFilter:this.table.options.persistence === true || this.table.options.persistence.headerFilter,
 				group:this.table.options.persistence === true || this.table.options.persistence.group,
 				page:this.table.options.persistence === true || this.table.options.persistence.page,
 				columns:this.table.options.persistence === true ? ["title", "width", "visible"] : this.table.options.persistence.columns,
@@ -95,32 +104,32 @@ class Persistence extends Module{
 
 			//load pagination data if needed
 			if(this.config.page){
-				retreivedData = this.retreiveData("page");
+				retrievedData = this.retrieveData("page");
 
-				if(retreivedData){
-					if(typeof retreivedData.paginationSize !== "undefined" && (this.config.page === true || this.config.page.size)){
-						this.table.options.paginationSize = retreivedData.paginationSize;
+				if(retrievedData){
+					if(typeof retrievedData.paginationSize !== "undefined" && (this.config.page === true || this.config.page.size)){
+						this.table.options.paginationSize = retrievedData.paginationSize;
 					}
 
-					if(typeof retreivedData.paginationInitialPage !== "undefined" && (this.config.page === true || this.config.page.page)){
-						this.table.options.paginationInitialPage = retreivedData.paginationInitialPage;
+					if(typeof retrievedData.paginationInitialPage !== "undefined" && (this.config.page === true || this.config.page.page)){
+						this.table.options.paginationInitialPage = retrievedData.paginationInitialPage;
 					}
 				}
 			}
 
 			//load group data if needed
 			if(this.config.group){
-				retreivedData = this.retreiveData("group");
+				retrievedData = this.retrieveData("group");
 
-				if(retreivedData){
-					if(typeof retreivedData.groupBy !== "undefined" && (this.config.group === true || this.config.group.groupBy)){
-						this.table.options.groupBy = retreivedData.groupBy;
+				if(retrievedData){
+					if(typeof retrievedData.groupBy !== "undefined" && (this.config.group === true || this.config.group.groupBy)){
+						this.table.options.groupBy = retrievedData.groupBy;
 					}
-					if(typeof retreivedData.groupStartOpen !== "undefined" && (this.config.group === true || this.config.group.groupStartOpen)){
-						this.table.options.groupStartOpen = retreivedData.groupStartOpen;
+					if(typeof retrievedData.groupStartOpen !== "undefined" && (this.config.group === true || this.config.group.groupStartOpen)){
+						this.table.options.groupStartOpen = retrievedData.groupStartOpen;
 					}
-					if(typeof retreivedData.groupHeader !== "undefined" && (this.config.group === true || this.config.group.groupHeader)){
-						this.table.options.groupHeader = retreivedData.groupHeader;
+					if(typeof retrievedData.groupHeader !== "undefined" && (this.config.group === true || this.config.group.groupHeader)){
+						this.table.options.groupHeader = retrievedData.groupHeader;
 					}
 				}
 			}
@@ -138,10 +147,12 @@ class Persistence extends Module{
 			this.subscribe("table-redraw", this.tableRedraw.bind(this));
 
 			this.subscribe("filter-changed", this.eventSave.bind(this, "filter"));
+			this.subscribe("filter-changed", this.eventSave.bind(this, "headerFilter"));
 			this.subscribe("sort-changed", this.eventSave.bind(this, "sort"));
 			this.subscribe("group-changed", this.eventSave.bind(this, "group"));
 			this.subscribe("page-changed", this.eventSave.bind(this, "page"));
 			this.subscribe("column-resized", this.eventSave.bind(this, "columns"));
+			this.subscribe("column-width", this.eventSave.bind(this, "columns"));
 			this.subscribe("layout-refreshed", this.eventSave.bind(this, "columns"));
 		}
 
@@ -156,8 +167,7 @@ class Persistence extends Module{
 	}
 
 	tableBuilt(){
-		var options = this.table.options,
-		sorters, filters;
+		var sorters, filters, headerFilters;
 
 		if(this.config.sort){
 			sorters = this.load("sort");
@@ -174,6 +184,14 @@ class Persistence extends Module{
 				this.table.options.initialFilter = filters;
 			}
 		}
+		if(this.config.headerFilter){
+			headerFilters = this.load("headerFilter");
+
+			if(!headerFilters === false){
+				this.table.options.initialHeaderFilter = headerFilters;
+			}
+		}
+		
 	}
 
 	tableRedraw(force){
@@ -191,7 +209,7 @@ class Persistence extends Module{
 	}
 
 	setColumnLayout(layout){
-		this.table.columnManager.setColumns(this.mergeDefinition(this.table.options.columns, layout))
+		this.table.columnManager.setColumns(this.mergeDefinition(this.table.options.columns, layout, true));
 		return true;
 	}
 
@@ -212,9 +230,10 @@ class Persistence extends Module{
 			keys.forEach((key)=>{
 				var props = Object.getOwnPropertyDescriptor(def, key);
 				var value = def[key];
+
 				if(props){
 					Object.defineProperty(def, key, {
-						set: function(newValue){
+						set: (newValue) => {
 							value = newValue;
 
 							if(!this.defWatcherBlock){
@@ -225,7 +244,7 @@ class Persistence extends Module{
 								props.set(newValue);
 							}
 						},
-						get:function(){
+						get:() => {
 							if(props.get){
 								props.get();
 							}
@@ -241,7 +260,7 @@ class Persistence extends Module{
 
 	//load saved definitions
 	load(type, current){
-		var data = this.retreiveData(type);
+		var data = this.retrieveData(type);
 
 		if(current){
 			data = data ? this.mergeDefinition(current, data) : current;
@@ -250,13 +269,13 @@ class Persistence extends Module{
 		return data;
 	}
 
-	//retreive data from memory
-	retreiveData(type){
+	//retrieve data from memory
+	retrieveData(type){
 		return this.readFunc ? this.readFunc(this.id, type) : false;
 	}
 
 	//merge old and new column definitions
-	mergeDefinition(oldCols, newCols){
+	mergeDefinition(oldCols, newCols, mergeAllNew){
 		var output = [];
 
 		newCols = newCols || [];
@@ -266,7 +285,9 @@ class Persistence extends Module{
 			keys;
 
 			if(from){
-				if(this.config.columns === true || this.config.columns == undefined){
+				if(mergeAllNew){
+					keys = Object.keys(column);
+				}else if(this.config.columns === true || this.config.columns == undefined){
 					keys =  Object.keys(from);
 					keys.push("width");
 				}else{
@@ -309,16 +330,13 @@ class Persistence extends Module{
 		return columns.find(function(col){
 			switch(type){
 				case "group":
-				return col.title === subject.title && col.columns.length === subject.columns.length;
-				break;
+					return col.title === subject.title && col.columns.length === subject.columns.length;
 
 				case "field":
-				return col.field === subject.field;
-				break;
+					return col.field === subject.field;
 
 				case "object":
-				return col === subject;
-				break;
+					return col === subject;
 			}
 		});
 	}
@@ -329,24 +347,28 @@ class Persistence extends Module{
 
 		switch(type){
 			case "columns":
-			data = this.parseColumns(this.table.columnManager.getColumns())
-			break;
+				data = this.parseColumns(this.table.columnManager.getColumns());
+				break;
 
 			case "filter":
-			data = this.table.modules.filter.getFilters();
-			break;
+				data = this.table.modules.filter.getFilters();
+				break;
+
+			case "headerFilter":
+				data = this.table.modules.filter.getHeaderFilters();
+				break;
 
 			case "sort":
-			data = this.validateSorters(this.table.modules.sort.getSort());
-			break;
+				data = this.validateSorters(this.table.modules.sort.getSort());
+				break;
 
 			case "group":
-			data = this.getGroupConfig();
-			break;
+				data = this.getGroupConfig();
+				break;
 
 			case "page":
-			data = this.getPageConfig();
-			break;
+				data = this.getPageConfig();
+				break;
 		}
 
 		if(this.writeFunc){
@@ -421,6 +443,7 @@ class Persistence extends Module{
 				if(this.config.columns === true || this.config.columns == undefined){
 					keys =  Object.keys(colDef);
 					keys.push("width");
+					keys.push("visible");
 				}else{
 					keys = this.config.columns;
 				}
@@ -428,16 +451,16 @@ class Persistence extends Module{
 				keys.forEach((key)=>{
 					switch(key){
 						case "width":
-						defStore.width = column.getWidth();
-						break;
+							defStore.width = column.getWidth();
+							break;
 						case "visible":
-						defStore.visible = column.visible;
-						break;
+							defStore.visible = column.visible;
+							break;
 
 						default:
-						if(typeof colDef[key] !== "function" && excludedKeys.indexOf(key) === -1){
-							defStore[key] = colDef[key];
-						}
+							if(typeof colDef[key] !== "function" && excludedKeys.indexOf(key) === -1){
+								defStore[key] = colDef[key];
+							}
 					}
 				});
 			}
@@ -448,13 +471,3 @@ class Persistence extends Module{
 		return definitions;
 	}
 }
-
-Persistence.moduleName = "persistence";
-
-Persistence.moduleInitOrder = -10;
-
-//load defaults
-Persistence.readers = defaultReaders;
-Persistence.writers = defaultWriters;
-
-export default Persistence;
