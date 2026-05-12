@@ -43,8 +43,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npx serve test -p 3000',
-    port: 3000,
+    command: 'npx serve . -p 9876',
+    port: 9876,
     timeout: 60 * 1000,
     reuseExistingServer: !process.env.CI,
   },
