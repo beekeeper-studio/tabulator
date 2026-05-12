@@ -8,18 +8,23 @@ test.describe("Context menu viewport bounds", () => {
 	});
 
 	const margin = 5;
-	const corners = [
+	const positions = [
 		{ name: "top-left", offsetX: margin, offsetY: 50 },
 		{ name: "top-right", offsetX: -margin, offsetY: 50 },
 		{ name: "bottom-left", offsetX: margin, offsetY: -margin },
 		{ name: "bottom-right", offsetX: -margin, offsetY: -margin },
+		{ name: "middle", offsetX: 0.5, offsetY: 0.5 },
 	];
 
-	for (const corner of corners) {
+	for (const corner of positions) {
 		test(`menu stays inside viewport when opened near ${corner.name}`, async ({ page }) => {
 			const viewport = page.viewportSize();
-			const x = corner.offsetX < 0 ? viewport.width + corner.offsetX : corner.offsetX;
-			const y = corner.offsetY < 0 ? viewport.height + corner.offsetY : corner.offsetY;
+			const resolve = (offset, size) => {
+				if (offset > 0 && offset < 1) return Math.round(size * offset);
+				return offset < 0 ? size + offset : offset;
+			};
+			const x = resolve(corner.offsetX, viewport.width);
+			const y = resolve(corner.offsetY, viewport.height);
 
 			await page.evaluate(({ x, y }) => {
 				const el = document.elementFromPoint(x, y);
