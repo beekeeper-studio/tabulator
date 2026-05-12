@@ -1,4 +1,4 @@
-/* Tabulator v6.4.0 (c) Oliver Folkerd 2026 */
+/* Tabulator v6.4.0-bks.1 (c) Oliver Folkerd 2026 */
 class CoreFeature{
 
 	constructor(table){
@@ -7933,6 +7933,10 @@ class Edit extends Module{
 		
 		if(cell){
 			
+			if(cell.column.modules.edit.navigationBlocked){
+				return false;
+			}
+
 			if(e){
 				e.preventDefault();
 			}
@@ -7963,6 +7967,10 @@ class Edit extends Module{
 		
 		if(cell){
 			
+			if(cell.column.modules.edit.navigationBlocked){
+				return false;
+			}
+		
 			if(e){
 				e.preventDefault();
 			}
@@ -7993,6 +8001,10 @@ class Edit extends Module{
 		
 		if(cell){
 			
+			if(cell.column.modules.edit.navigationBlocked){
+				return false;
+			}
+		
 			if(e){
 				e.preventDefault();
 			}
@@ -8014,6 +8026,10 @@ class Edit extends Module{
 		
 		if(cell){
 			
+			if(cell.column.modules.edit.navigationBlocked){
+				return false;
+			}
+		
 			if(e){
 				e.preventDefault();
 			}
@@ -8035,6 +8051,10 @@ class Edit extends Module{
 		
 		if(cell){
 			
+			if(cell.column.modules.edit.navigationBlocked){
+				return false;
+			}
+		
 			if(e){
 				e.preventDefault();
 			}
@@ -8056,6 +8076,10 @@ class Edit extends Module{
 		
 		if(cell){
 			
+			if(cell.column.modules.edit.navigationBlocked){
+				return false;
+			}
+
 			if(e){
 				e.preventDefault();
 			}
@@ -8156,6 +8180,7 @@ class Edit extends Module{
 			convertEmptyValues:convertEmpty,
 			editorEmptyValue:column.definition.editorEmptyValue,
 			editorEmptyValueFunc:column.definition.editorEmptyValueFunc,
+			navigationBlocked: false,
 		};
 		
 		//set column editor
@@ -10308,7 +10333,7 @@ function money(cell, formatterParams, onRendered){
 	var after = !!formatterParams.symbolAfter;
 	var precision = typeof formatterParams.precision !== "undefined" ? formatterParams.precision : 2;
 
-	if(isNaN(floatVal)){
+	if(Number.isNaN(floatVal)){
 		return this.emptyToSpace(this.sanitizeHTML(cell.getValue()));
 	}
 
@@ -10595,7 +10620,7 @@ function star(cell, formatterParams, onRendered){
 	star.setAttribute("xml:space", "preserve");
 	star.style.padding = "0 1px";
 
-	value = value && !isNaN(value) ? parseInt(value) : 0;
+	value = value && !Number.isNaN(value) ? parseInt(value) : 0;
 
 	value = Math.max(0, Math.min(value, maxStars));
 
@@ -10624,7 +10649,7 @@ function traffic(cell, formatterParams, onRendered){
 	color = "#666666",
 	percent, percentValue;
 
-	if(isNaN(value) || typeof cell.getValue() === "undefined"){
+	if(Number.isNaN(value) || typeof cell.getValue() === "undefined"){
 		return;
 	}
 
@@ -21926,7 +21951,7 @@ class Sort extends Module{
 						break;
 					
 					default:
-						if(!isNaN(value) && value !== ""){
+						if(!isNaN(Number(value)) && value !== ""){
 							sorter = "number";
 						}else {
 							if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
@@ -24534,7 +24559,7 @@ class ColumnManager extends CoreFeature {
 				break;
 			
 			default:
-				if(!isNaN(value) && value !== ""){
+				if(!isNaN(Number(value)) && value !== ""){
 					sorter = "number";
 				}else {
 					if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){

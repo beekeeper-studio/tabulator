@@ -1,4 +1,4 @@
-/* Tabulator v6.4.0 (c) Oliver Folkerd 2026 */
+/* Tabulator v6.4.0-bks.1 (c) Oliver Folkerd 2026 */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
@@ -2895,7 +2895,7 @@
 					break;
 				
 				default:
-					if(!isNaN(value) && value !== ""){
+					if(!isNaN(Number(value)) && value !== ""){
 						sorter = "number";
 					}else {
 						if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
@@ -14267,6 +14267,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+
 				if(e){
 					e.preventDefault();
 				}
@@ -14297,6 +14301,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14327,6 +14335,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14348,6 +14360,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14369,6 +14385,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+			
 				if(e){
 					e.preventDefault();
 				}
@@ -14390,6 +14410,10 @@
 			
 			if(cell){
 				
+				if(cell.column.modules.edit.navigationBlocked){
+					return false;
+				}
+
 				if(e){
 					e.preventDefault();
 				}
@@ -14490,6 +14514,7 @@
 				convertEmptyValues:convertEmpty,
 				editorEmptyValue:column.definition.editorEmptyValue,
 				editorEmptyValueFunc:column.definition.editorEmptyValueFunc,
+				navigationBlocked: false,
 			};
 			
 			//set column editor
@@ -16642,7 +16667,7 @@
 		var after = !!formatterParams.symbolAfter;
 		var precision = typeof formatterParams.precision !== "undefined" ? formatterParams.precision : 2;
 
-		if(isNaN(floatVal)){
+		if(Number.isNaN(floatVal)){
 			return this.emptyToSpace(this.sanitizeHTML(cell.getValue()));
 		}
 
@@ -16929,7 +16954,7 @@
 		star.setAttribute("xml:space", "preserve");
 		star.style.padding = "0 1px";
 
-		value = value && !isNaN(value) ? parseInt(value) : 0;
+		value = value && !Number.isNaN(value) ? parseInt(value) : 0;
 
 		value = Math.max(0, Math.min(value, maxStars));
 
@@ -16958,7 +16983,7 @@
 		color = "#666666",
 		percent, percentValue;
 
-		if(isNaN(value) || typeof cell.getValue() === "undefined"){
+		if(Number.isNaN(value) || typeof cell.getValue() === "undefined"){
 			return;
 		}
 
@@ -28260,7 +28285,7 @@
 							break;
 						
 						default:
-							if(!isNaN(value) && value !== ""){
+							if(!isNaN(Number(value)) && value !== ""){
 								sorter = "number";
 							}else {
 								if(value.match(/((^[0-9]+[a-z]+)|(^[a-z]+[0-9]+))+$/i)){
