@@ -209,12 +209,17 @@ export default class Popup extends CoreFeature{
 				}
 
 			}else{
-				let newTop = y - this.element.offsetHeight;
-				if(newTop < 0){
-					newTop = 0;
+				let menuHeight = this.element.offsetHeight;
+				if(menuHeight > offsetHeight){
+					this.element.style.top = "0px";
 					this.element.style.height = offsetHeight + "px";
+				}else{
+					let newTop = y - menuHeight;
+					if(newTop < 0){
+						newTop = offsetHeight - menuHeight;
+					}
+					this.element.style.top = newTop + "px";
 				}
-				this.element.style.top = newTop + "px";
 			}
 		}
 	}
