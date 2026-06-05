@@ -1,9 +1,11 @@
 // @ts-check
 import { test, expect } from "@playwright/test";
+import { join } from "path";
 
 test.describe("Tabulator functionality", () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto("/test/e2e/index.html");
+		const htmlPath = join(__dirname, "index.html");
+        await page.goto(`file://${htmlPath}`);
         await page.waitForSelector(".tabulator");
     });
 
