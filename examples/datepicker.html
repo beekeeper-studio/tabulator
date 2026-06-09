@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Tabulator Date Picker Editor Demo</title>
+	<style>
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			margin: 0;
+			padding: 0;
+			color: #333;
+			background: #f5f5f5;
+		}
+
+		.page {
+			max-width: 960px;
+			margin: 40px auto;
+			padding: 0 20px;
+		}
+
+		h1 {
+			font-size: 24px;
+			margin-bottom: 4px;
+		}
+
+		p.subtitle {
+			color: #666;
+			margin-top: 0;
+			margin-bottom: 24px;
+		}
+
+		h2 {
+			font-size: 18px;
+			margin-top: 36px;
+			margin-bottom: 8px;
+		}
+
+		.demo-section {
+			background: #fff;
+			border: 1px solid #ddd;
+			border-radius: 6px;
+			padding: 20px;
+			margin-bottom: 12px;
+		}
+
+		.demo-section p {
+			margin-top: 0;
+			color: #555;
+			font-size: 14px;
+		}
+
+		.theme-nav {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			margin-bottom: 24px;
+		}
+
+		.theme-nav a {
+			padding: 5px 12px;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			text-decoration: none;
+			font-size: 13px;
+			color: #444;
+			background: #fff;
+		}
+
+		.theme-nav a:hover {
+			background: #e8e8e8;
+		}
+
+		.theme-nav a.active {
+			background: #1D68CD;
+			color: #fff;
+			border-color: #1D68CD;
+		}
+	</style>
+	<link id="theme-css" rel="stylesheet" href="../dist/css/tabulator.css">
+</head>
+<body>
+	<div class="page">
+		<h1>Date Picker Editor</h1>
+		<p class="subtitle">Click a date cell to type directly, or use the calendar button to pick from a popup.</p>
+
+		<!-- Theme switcher -->
+		<h2>Theme</h2>
+		<div class="theme-nav" id="theme-nav"></div>
+
+		<!-- Columns to the right of date -->
+		<h2>Date Column With Columns To The Right</h2>
+		<div class="demo-section">
+			<p>The date column is in the middle with other columns on both sides. Click a date cell to see the calendar button overlap.</p>
+			<div id="table-overlap"></div>
+		</div>
+
+		<!-- Date as rightmost column -->
+		<h2>Date As Rightmost Column</h2>
+		<div class="demo-section">
+			<p>The date column is the last column. The calendar button appears below (or above) the cell since there's no room to the right.</p>
+			<div id="table-rightmost"></div>
+		</div>
+
+		<!-- Full-width table, date at right edge -->
+		<h2>Full-Width Table, Date At Viewport Edge</h2>
+		<div class="demo-section" style="padding:0;">
+			<p style="padding:20px 20px 0;">Table spans the full container. The rightmost date column is flush with the viewport edge &mdash; the button should appear below the cell.</p>
+			<div id="table-flush-right"></div>
+		</div>
+
+		<!-- Narrow date column -->
+		<h2>Narrow Date Column</h2>
+		<div class="demo-section">
+			<p>Date column with a fixed narrow width, surrounded by other columns.</p>
+			<div id="table-narrow"></div>
+		</div>
+
+		<!-- Mixed editors -->
+		<h2>Mixed Editors</h2>
+		<div class="demo-section">
+			<p>Multiple date columns alongside other editor types.</p>
+			<div id="table-mixed"></div>
+		</div>
+
+		<!-- Min/Max constraints -->
+		<h2>Min / Max Constraints</h2>
+		<div class="demo-section">
+			<p>Dates restricted to 2024. Disabled dates are greyed out.</p>
+			<div id="table-constrained"></div>
+		</div>
+
+		<!-- Bottom of page — button should go above if no room below -->
+		<h2>Bottom of Page (Button Above)</h2>
+		<div class="demo-section">
+			<p>This table is near the bottom of the page. Click the last row's date &mdash; if there's not enough room below, the button appears above the cell.</p>
+			<div id="table-bottom"></div>
+		</div>
+	</div>
+
+	<script src="../dist/js/tabulator.js"></script>
+	<script>
+		// ---- Theme switcher ----
+		var themes = [
+			{ name: "Default",       file: "tabulator.css" },
+			{ name: "Midnight",      file: "tabulator_midnight.css" },
+			{ name: "Modern",        file: "tabulator_modern.css" },
+			{ name: "Simple",        file: "tabulator_simple.css" },
+			{ name: "Site",          file: "tabulator_site.css" },
+			{ name: "Site Dark",     file: "tabulator_site_dark.css" },
+			{ name: "Bootstrap 5",   file: "tabulator_bootstrap5.css" },
+			{ name: "Bulma",         file: "tabulator_bulma.css" },
+			{ name: "Materialize",   file: "tabulator_materialize.css" },
+			{ name: "Semantic UI",   file: "tabulator_semanticui.css" },
+		];
+
+		var themeNav = document.getElementById("theme-nav");
+		var currentTheme = "tabulator.css";
+
+		themes.forEach(function(theme) {
+			var link = document.createElement("a");
+			link.href = "#";
+			link.textContent = theme.name;
+			if (theme.file === currentTheme) link.classList.add("active");
+
+			link.addEventListener("click", function(e) {
+				e.preventDefault();
+				currentTheme = theme.file;
+				document.getElementById("theme-css").href = "../dist/css/" + theme.file;
+				themeNav.querySelectorAll("a").forEach(function(a) { a.classList.remove("active"); });
+				link.classList.add("active");
+			});
+
+			themeNav.appendChild(link);
+		});
+
+		// ---- Sample data ----
+		var peopleData = [
+			{ id: 1, name: "Alice Johnson",   hired: "2022-06-15", reviewed: "2025-01-10", dept: "Engineering", salary: 95000,  active: true },
+			{ id: 2, name: "Bob Martinez",     hired: "2020-03-22", reviewed: "2024-11-05", dept: "Design",      salary: 82000,  active: true },
+			{ id: 3, name: "Charlie Kim",      hired: "2023-01-08", reviewed: "2025-03-20", dept: "Engineering", salary: 105000, active: false },
+			{ id: 4, name: "Diana Osei",       hired: "2019-11-30", reviewed: "2025-02-14", dept: "Marketing",   salary: 78000,  active: true },
+			{ id: 5, name: "Eli Nakamura",     hired: "2021-08-02", reviewed: "2024-09-18", dept: "Engineering", salary: 112000, active: true },
+			{ id: 6, name: "Fatima Al-Rashid",  hired: "2024-02-19", reviewed: "2025-04-01", dept: "Sales",       salary: 71000,  active: true },
+		];
+
+		// ---- Columns to the right ----
+		new Tabulator("#table-overlap", {
+			height: 260,
+			data: peopleData,
+			columns: [
+				{ title: "ID",        field: "id", width: 50 },
+				{ title: "Name",      field: "name", width: 150 },
+				{ title: "Hired",     field: "hired",    editor: "datepicker" },
+				{ title: "Reviewed",  field: "reviewed", editor: "datepicker" },
+				{ title: "Dept",      field: "dept", width: 110 },
+				{ title: "Salary",    field: "salary", width: 90, formatter: "money", formatterParams: { symbol: "$", precision: 0 } },
+				{ title: "Active",    field: "active", width: 70, formatter: "tickCross" },
+			],
+		});
+
+		// ---- Date as rightmost column ----
+		new Tabulator("#table-rightmost", {
+			height: 260,
+			data: peopleData,
+			columns: [
+				{ title: "ID",        field: "id", width: 50 },
+				{ title: "Name",      field: "name", width: 150 },
+				{ title: "Dept",      field: "dept", width: 120 },
+				{ title: "Salary",    field: "salary", width: 100, formatter: "money", formatterParams: { symbol: "$", precision: 0 } },
+				{ title: "Hired",     field: "hired", editor: "datepicker" },
+			],
+		});
+
+		// ---- Full-width table, date at viewport edge ----
+		new Tabulator("#table-flush-right", {
+			height: 260,
+			layout: "fitColumns",
+			data: peopleData,
+			columns: [
+				{ title: "Name",      field: "name" },
+				{ title: "Dept",      field: "dept" },
+				{ title: "Salary",    field: "salary", formatter: "money", formatterParams: { symbol: "$", precision: 0 } },
+				{ title: "Hired",     field: "hired", editor: "datepicker" },
+			],
+		});
+
+		// ---- Narrow date column ----
+		new Tabulator("#table-narrow", {
+			height: 260,
+			data: peopleData,
+			columns: [
+				{ title: "Name",      field: "name", width: 150 },
+				{ title: "Hired",     field: "hired", editor: "datepicker", width: 110 },
+				{ title: "Dept",      field: "dept", width: 120 },
+				{ title: "Reviewed",  field: "reviewed", editor: "datepicker", width: 110 },
+				{ title: "Salary",    field: "salary", formatter: "money", formatterParams: { symbol: "$", precision: 0 } },
+				{ title: "Active",    field: "active", width: 70, formatter: "tickCross", editor: "tickCross" },
+			],
+		});
+
+		// ---- Mixed editors ----
+		new Tabulator("#table-mixed", {
+			height: 260,
+			data: [
+				{ id: 1, name: "Project Alpha",  start: "2025-01-10", end: "2025-06-30", owner: "Alice",   priority: 3, complete: false },
+				{ id: 2, name: "Project Beta",   start: "2025-03-01", end: "2025-09-15", owner: "Bob",     priority: 5, complete: true  },
+				{ id: 3, name: "Project Gamma",  start: "2025-05-20", end: "2025-12-01", owner: "Charlie", priority: 2, complete: false },
+				{ id: 4, name: "Project Delta",  start: "2025-02-14", end: "2025-08-20", owner: "Diana",   priority: 4, complete: true  },
+				{ id: 5, name: "Project Epsilon", start: "2025-04-05", end: "2026-01-15", owner: "Eli",     priority: 1, complete: false },
+			],
+			columns: [
+				{ title: "ID",       field: "id", width: 50 },
+				{ title: "Name",     field: "name",     editor: "input", width: 140 },
+				{ title: "Start",    field: "start",    editor: "datepicker" },
+				{ title: "End",      field: "end",      editor: "datepicker" },
+				{ title: "Owner",    field: "owner",    editor: "input", width: 90 },
+				{ title: "Priority", field: "priority", editor: "star", width: 120, formatter: "star" },
+				{ title: "Done",     field: "complete", editor: "tickCross", width: 70, formatter: "tickCross" },
+			],
+		});
+
+		// ---- Bottom of page — button above ----
+		new Tabulator("#table-bottom", {
+			layout: "fitColumns",
+			data: [
+				{ id: 1, task: "Write docs",    due: "2025-05-01" },
+				{ id: 2, task: "Fix login bug",  due: "2025-04-20" },
+				{ id: 3, task: "Deploy v2.1",   due: "2025-06-15" },
+			],
+			columns: [
+				{ title: "ID",   field: "id", width: 50 },
+				{ title: "Task", field: "task" },
+				{ title: "Due",  field: "due", editor: "datepicker" },
+			],
+		});
+
+		// ---- Constrained ----
+		new Tabulator("#table-constrained", {
+			height: 220,
+			data: [
+				{ id: 1, event: "Kickoff",   date: "2024-01-15", location: "New York",  attendees: 12 },
+				{ id: 2, event: "Midpoint",  date: "2024-06-01", location: "London",    attendees: 8 },
+				{ id: 3, event: "Review",    date: "2024-09-10", location: "Tokyo",     attendees: 15 },
+				{ id: 4, event: "Deadline",  date: "2024-12-20", location: "Berlin",    attendees: 6 },
+			],
+			columns: [
+				{ title: "ID",        field: "id", width: 50 },
+				{ title: "Event",     field: "event", editor: "input", width: 120 },
+				{
+					title: "Date (2024 only)",
+					field: "date",
+					editor: "datepicker",
+					editorParams: {
+						min: "2024-01-01",
+						max: "2024-12-31",
+					},
+				},
+				{ title: "Location",  field: "location", editor: "input", width: 110 },
+				{ title: "Attendees", field: "attendees", editor: "number", width: 100 },
+			],
+		});
+	</script>
+</body>
+</html>
