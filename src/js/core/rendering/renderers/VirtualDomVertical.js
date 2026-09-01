@@ -351,7 +351,8 @@ export default class VirtualDomVertical extends Renderer{
 					totalRowsRendered++;
 				});
 
-				resized = this.table.rowManager.adjustTableSize();
+				//block the redraw, this loop picks up the new container size itself
+				resized = this.table.rowManager.adjustTableSize(true);
 				containerHeight = this.elementVertical.clientHeight;
 				if(resized && (fixedHeight || this.table.options.maxHeight))
 				{

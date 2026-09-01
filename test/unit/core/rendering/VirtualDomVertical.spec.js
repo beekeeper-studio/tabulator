@@ -13,10 +13,11 @@
  *       at RowManager.adjustTableSize
  *       at VirtualDomVertical._virtualRenderFill      <-- cycle repeats
  *
- * The cycle exists because `_virtualRenderFill()` calls `rowManager.adjustTableSize()`
- * from inside its render loop, and `adjustTableSize()` kicks off a full `redraw()`
- * whenever the holder changed size - which renders the rows all over again while the
- * first render pass is still running.
+ * The cycle existed because `_virtualRenderFill()` calls `rowManager.adjustTableSize()`
+ * from inside its render loop, and `adjustTableSize()` kicked off a full `redraw()`
+ * whenever the holder changed size - which rendered the rows all over again while the
+ * first render pass was still running. The render loop now blocks that redraw: it
+ * picks up the new container size itself.
  *
  * These tests drive the real `VirtualDomVertical` renderer and the real
  * `RowManager.adjustTableSize()`/`redraw()` against a simulated box model, because
@@ -237,11 +238,33 @@ describe("VirtualDomVertical maxHeight rendering (issue #4419)", () => {
         renderer.renderRows();
 
         // `_virtualRenderFill()` calls `adjustTableSize()` from inside its render loop.
-        // When that reports a size change it triggers `redraw()`, which re-renders the
-        // rows through `reRenderInPosition()` while the first pass is still running -
-        // the cycle from the stack trace in #4419.
+        // If that triggered `redraw()` on a size change, the rows would be re-rendered
+        // through `reRenderInPosition()` while the first pass was still running - the
+        // cycle from the stack trace in #4419.
         expect(passes.maxDepth).toBe(1);
         expect(passes.count).toBe(1);
+    });
+
+    it("adjustTableSize() still reports a resize when its redraw is blocked", () => {
+        const {rowManager, rows, holder, tableElement} = buildTable();
+        const redraw = jest.spyOn(rowManager, "redraw").mockImplementation(() => {});
+        const appendRows = (from, to) => rows.slice(from, to).forEach((row) => tableElement.appendChild(row.getElement()));
+
+        // size the empty holder, then let the content grow underneath it
+        rowManager.adjustTableSize();
+        expect(holder.style.height).toBe("0px");
+
+        appendRows(0, 20);
+
+        expect(rowManager.adjustTableSize(true)).toBe(true);
+        expect(holder.clientHeight).toBe(20 * ROW_HEIGHT);
+        expect(redraw).not.toHaveBeenCalled();
+
+        appendRows(20, 40);
+
+        expect(rowManager.adjustTableSize()).toBe(true);
+        expect(holder.clientHeight).toBe(MAX_HEIGHT - HEADER_HEIGHT);
+        expect(redraw).toHaveBeenCalledTimes(1);
     });
 
     it("does not overflow the call stack when rendering a table with maxHeight", () => {
