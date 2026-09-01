@@ -98,7 +98,13 @@ export default class VirtualDomVertical extends Renderer{
 		}
 
 		if(this.rows().length){
-			this._virtualRenderFill((topRow === false ? this.rows.length - 1 : topRow), true, topOffset || 0);
+			if(topRow === false){
+				//no rendered row to anchor on, start from the top if nothing was rendered before,
+				//otherwise the rendered window is past the end of the shrunken data so anchor on the last row
+				topRow = rows.length ? this.rows().length - 1 : 0;
+			}
+
+			this._virtualRenderFill(topRow, true, topOffset || 0);
 		}else{
 			this.clear();
 			this.table.rowManager.tableEmpty();

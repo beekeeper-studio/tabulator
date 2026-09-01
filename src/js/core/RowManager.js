@@ -1054,8 +1054,8 @@ export default class RowManager extends CoreFeature{
 				this.element.style.maxHeight = height;
 			} else {
 				this.element.style.height = "";
-				this.element.style.height =
-				this.table.element.clientHeight - otherHeight + "px";
+				//clamp at zero, a negative height is invalid css and would leave the holder at its content height
+				this.element.style.height = Math.max(this.table.element.clientHeight - otherHeight, 0) + "px";
 				this.element.scrollTop = this.scrollTop;
 			}
 			

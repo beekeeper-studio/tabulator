@@ -69,6 +69,16 @@ function buildRow(index){
     };
 }
 
+function buildRows(count){
+    const rows = [];
+
+    for(let i = 0; i < count; i++){
+        rows.push(buildRow(i));
+    }
+
+    return rows;
+}
+
 /**
  * Wires a real RowManager to a real VirtualDomVertical renderer and gives the
  * elements a browser-like box model:
@@ -138,6 +148,14 @@ function buildTable({rowCount = ROW_COUNT, maxHeight = MAX_HEIGHT} = {}){
         pixels(tableElement.style.paddingBottom) +
         (tableElement.children.length * ROW_HEIGHT);
 
+    // browsers reject a negative inline height, which leaves the holder at its
+    // content height, exactly as if no height had been set at all
+    const holderHeight = () => {
+        const height = parseFloat(holder.style.height);
+
+        return isNaN(height) || height < 0 ? contentHeight() : height;
+    };
+
     Object.defineProperties(tableElement, {
         clientHeight: {get: contentHeight},
         offsetHeight: {get: contentHeight},
@@ -146,9 +164,9 @@ function buildTable({rowCount = ROW_COUNT, maxHeight = MAX_HEIGHT} = {}){
     let scrollTop = 0;
 
     Object.defineProperties(holder, {
-        clientHeight: {get: () => holder.style.height === "" ? contentHeight() : Math.max(pixels(holder.style.height), 0)},
-        offsetHeight: {get: () => holder.clientHeight},
-        scrollHeight: {get: () => Math.max(holder.clientHeight, contentHeight())},
+        clientHeight: {get: holderHeight},
+        offsetHeight: {get: holderHeight},
+        scrollHeight: {get: () => Math.max(holderHeight(), contentHeight())},
         clientWidth: {value: 800},
         offsetWidth: {value: 800},
         scrollWidth: {value: 800},
@@ -156,25 +174,26 @@ function buildTable({rowCount = ROW_COUNT, maxHeight = MAX_HEIGHT} = {}){
     });
 
     Object.defineProperties(element, {
-        clientHeight: {get: () => Math.min(maxHeight, HEADER_HEIGHT + holder.clientHeight)},
+        clientHeight: {get: () => Math.min(maxHeight, HEADER_HEIGHT + holderHeight())},
         clientWidth: {value: 800},
     });
 
-    const rows = [];
-    for(let i = 0; i < rowCount; i++){
-        rows.push(buildRow(i));
-    }
+    const rows = buildRows(rowCount);
 
-    rowManager.displayRows = [rows];
-    rowManager.displayRowsCount = rows.length;
-    rowManager.activeRows = rows;
+    const setRows = (displayRows) => {
+        rowManager.displayRows = [displayRows];
+        rowManager.displayRowsCount = displayRows.length;
+        rowManager.activeRows = displayRows;
+    };
+
+    setRows(rows);
     rowManager.renderMode = "virtual";
 
     const renderer = new VirtualDomVertical(table);
     renderer.initialize();
     rowManager.renderer = renderer;
 
-    return {table, rowManager, renderer, rows, element, holder, tableElement};
+    return {table, rowManager, renderer, rows, setRows, element, holder, tableElement};
 }
 
 /**
@@ -240,5 +259,67 @@ describe("VirtualDomVertical maxHeight rendering (issue #4419)", () => {
 
         expect(element.clientHeight).toBe(MAX_HEIGHT);
         expect(holder.clientHeight).toBe(MAX_HEIGHT - HEADER_HEIGHT);
+    });
+});
+
+describe("VirtualDomVertical maxHeight smaller than the header", () => {
+
+    afterEach(() => {
+        document.body.innerHTML = "";
+    });
+
+    it("gives the holder no height rather than an invalid negative one, and keeps the render virtual", () => {
+        const rowCount = 1000;
+        const {renderer, holder, tableElement} = buildTable({rowCount, maxHeight: HEADER_HEIGHT - 14});
+
+        renderer.renderRows();
+
+        // a negative height is invalid css, so the holder would fall back to its content
+        // height; the renderer then sizes its buffer from that and renders every row
+        expect(holder.style.height).toBe("0px");
+        expect(tableElement.children.length).toBeLessThanOrEqual(renderer.vDomWindowMinTotalRows);
+        expect(tableElement.children.length).toBeLessThan(rowCount);
+    });
+});
+
+describe("VirtualDomVertical rerenderRows() without a row to anchor on", () => {
+
+    afterEach(() => {
+        document.body.innerHTML = "";
+    });
+
+    it("renders from the top when the table had no rows before", () => {
+        const {renderer, setRows, holder} = buildTable({rowCount: 0});
+        const rows = buildRows(1000);
+
+        renderer.renderRows();
+
+        // the same shape as a filter that matched nothing being replaced by one that
+        // matches everything: the rows only exist once the callback has run
+        renderer.rerenderRows(() => {
+            setRows(rows);
+        });
+
+        expect(renderer.vDomTop).toBe(0);
+        expect(holder.scrollTop).toBe(0);
+    });
+
+    it("stays at the end of the data when the rendered window is past its new end", () => {
+        const {renderer, rows, setRows, holder} = buildTable({rowCount: 1000});
+
+        renderer.renderRows();
+        renderer.scrollToRow(rows[rows.length - 1]);
+
+        expect(renderer.vDomBottom).toBe(rows.length - 1);
+
+        // rows deleted while redrawing was blocked: the rendered window now points past
+        // the end of the data, so no previously rendered row can be used as the anchor
+        const remaining = rows.slice(0, 100);
+        setRows(remaining);
+
+        renderer.rerenderRows();
+
+        expect(renderer.vDomBottom).toBe(remaining.length - 1);
+        expect(holder.scrollTop).toBe(holder.scrollHeight - holder.clientHeight);
     });
 });
