@@ -1,0 +1,244 @@
+/**
+ * Regression tests for tabulator-tables/tabulator#4419
+ * "Error when setting maxHeight on a datatable"
+ *
+ * Reported against 5.6.1 (5.6.0 was fine). Setting `maxHeight` on a table that has
+ * no fixed `height` pins Chrome at 100% CPU and eventually throws:
+ *
+ *   RangeError: Maximum call stack size exceeded
+ *       at VirtualDomVertical._virtualRenderFill
+ *       at VirtualDomVertical.rerenderRows
+ *       at RowManager.reRenderInPosition
+ *       at RowManager.redraw
+ *       at RowManager.adjustTableSize
+ *       at VirtualDomVertical._virtualRenderFill      <-- cycle repeats
+ *
+ * The cycle exists because `_virtualRenderFill()` calls `rowManager.adjustTableSize()`
+ * from inside its render loop, and `adjustTableSize()` kicks off a full `redraw()`
+ * whenever the holder changed size - which renders the rows all over again while the
+ * first render pass is still running.
+ *
+ * These tests drive the real `VirtualDomVertical` renderer and the real
+ * `RowManager.adjustTableSize()`/`redraw()` against a simulated box model, because
+ * jsdom reports 0 for every layout measurement. The model mirrors what the browser
+ * does for the configuration in the issue's fiddle (https://jsfiddle.net/20efovmx/41/):
+ * an auto-height table capped by `maxHeight`, so the holder grows with its content
+ * until the table hits the cap.
+ */
+
+import RowManager from "../../../../src/js/core/RowManager";
+import VirtualDomVertical from "../../../../src/js/core/rendering/renderers/VirtualDomVertical";
+
+const ROW_HEIGHT = 24;
+const HEADER_HEIGHT = 54; // column title row + header filter row, as in the issue's fiddle
+const MAX_HEIGHT = 600;
+const ROW_COUNT = 50;
+
+// depth at which we give up rather than letting the stack actually overflow, so a
+// failure reports the render cycle instead of an opaque RangeError
+const RUNAWAY_RENDER_DEPTH = 25;
+
+function pixels(value){
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * A stand in for a rendered Row. Every hook `_virtualRenderFill()` and
+ * `rerenderRows()` reach for, with a constant height so the box model below stays
+ * predictable.
+ */
+function buildRow(index){
+    const element = document.createElement("div");
+
+    element.classList.add("tabulator-row");
+    Object.defineProperty(element, "offsetTop", {get: () => index * ROW_HEIGHT});
+
+    return {
+        element,
+        heightInitialized: false,
+        getElement(){ return this.element; },
+        initialize(){},
+        rendered(){},
+        calcHeight(){ this.heightInitialized = true; },
+        setCellHeight(){},
+        clearCellHeight(){},
+        deinitializeHeight(){ this.heightInitialized = false; },
+        normalizeHeight(){},
+        getHeight(){ return ROW_HEIGHT; },
+    };
+}
+
+/**
+ * Wires a real RowManager to a real VirtualDomVertical renderer and gives the
+ * elements a browser-like box model:
+ *
+ *   .tabulator             height: min(maxHeight, header + holder)   <- maxHeight cap
+ *   .tabulator-tableholder height: its inline style, or its content when unset
+ *   .tabulator-table       height: rendered rows + vertical padding
+ */
+function buildTable({rowCount = ROW_COUNT, maxHeight = MAX_HEIGHT} = {}){
+    const eventBus = {
+        subscribe: jest.fn(),
+        unsubscribe: jest.fn(),
+        subscribed: jest.fn(() => false),
+        dispatch: jest.fn(),
+        chain: jest.fn((key, args, initial) => initial),
+        confirm: jest.fn(() => false),
+    };
+
+    const externalEvents = {
+        dispatch: jest.fn(),
+        subscribed: jest.fn(() => false),
+    };
+
+    const element = document.createElement("div");
+    element.classList.add("tabulator");
+    element.style.maxHeight = maxHeight + "px";
+
+    const header = document.createElement("div");
+    header.classList.add("tabulator-header");
+    header.getBoundingClientRect = () => ({height: HEADER_HEIGHT, width: 800});
+
+    const table = {
+        element,
+        eventBus,
+        externalEvents,
+        modules: {},
+        options: {
+            maxHeight: maxHeight + "px",
+            minHeight: false,
+            height: false,
+            rowHeight: false,
+            renderVerticalBuffer: 0,
+        },
+        columnManager: {
+            element: header,
+            getElement: () => header,
+            getWidth: () => 800,
+        },
+    };
+
+    const rowManager = new RowManager(table);
+    table.rowManager = rowManager;
+
+    // `initializeRenderer()` leaves fixedHeight false for a table with maxHeight but
+    // no height, because the element is still empty when the renderer is created
+    rowManager.fixedHeight = false;
+
+    const holder = rowManager.element;
+    const tableElement = rowManager.tableElement;
+
+    holder.appendChild(tableElement);
+    element.appendChild(header);
+    element.appendChild(holder);
+    document.body.appendChild(element);
+
+    const contentHeight = () => pixels(tableElement.style.paddingTop) +
+        pixels(tableElement.style.paddingBottom) +
+        (tableElement.children.length * ROW_HEIGHT);
+
+    Object.defineProperties(tableElement, {
+        clientHeight: {get: contentHeight},
+        offsetHeight: {get: contentHeight},
+    });
+
+    let scrollTop = 0;
+
+    Object.defineProperties(holder, {
+        clientHeight: {get: () => holder.style.height === "" ? contentHeight() : Math.max(pixels(holder.style.height), 0)},
+        offsetHeight: {get: () => holder.clientHeight},
+        scrollHeight: {get: () => Math.max(holder.clientHeight, contentHeight())},
+        clientWidth: {value: 800},
+        offsetWidth: {value: 800},
+        scrollWidth: {value: 800},
+        scrollTop: {get: () => scrollTop, set: (value) => { scrollTop = value; }},
+    });
+
+    Object.defineProperties(element, {
+        clientHeight: {get: () => Math.min(maxHeight, HEADER_HEIGHT + holder.clientHeight)},
+        clientWidth: {value: 800},
+    });
+
+    const rows = [];
+    for(let i = 0; i < rowCount; i++){
+        rows.push(buildRow(i));
+    }
+
+    rowManager.displayRows = [rows];
+    rowManager.displayRowsCount = rows.length;
+    rowManager.activeRows = rows;
+    rowManager.renderMode = "virtual";
+
+    const renderer = new VirtualDomVertical(table);
+    renderer.initialize();
+    rowManager.renderer = renderer;
+
+    return {table, rowManager, renderer, rows, element, holder, tableElement};
+}
+
+/**
+ * Counts how often `_virtualRenderFill()` runs, and how deeply it nests inside
+ * itself, for a single render.
+ */
+function trackRenderPasses(renderer){
+    const passes = {count: 0, depth: 0, maxDepth: 0};
+    const render = renderer._virtualRenderFill.bind(renderer);
+
+    renderer._virtualRenderFill = function(...args){
+        passes.count++;
+        passes.depth++;
+        passes.maxDepth = Math.max(passes.maxDepth, passes.depth);
+
+        if(passes.depth > RUNAWAY_RENDER_DEPTH){
+            throw new Error("_virtualRenderFill recursed " + passes.depth + " levels deep");
+        }
+
+        try{
+            return render(...args);
+        }finally{
+            passes.depth--;
+        }
+    };
+
+    return passes;
+}
+
+describe("VirtualDomVertical maxHeight rendering (issue #4419)", () => {
+
+    afterEach(() => {
+        document.body.innerHTML = "";
+        jest.restoreAllMocks();
+    });
+
+    it("does not start a new render pass while one is already running", () => {
+        const {renderer} = buildTable();
+        const passes = trackRenderPasses(renderer);
+
+        renderer.renderRows();
+
+        // `_virtualRenderFill()` calls `adjustTableSize()` from inside its render loop.
+        // When that reports a size change it triggers `redraw()`, which re-renders the
+        // rows through `reRenderInPosition()` while the first pass is still running -
+        // the cycle from the stack trace in #4419.
+        expect(passes.maxDepth).toBe(1);
+        expect(passes.count).toBe(1);
+    });
+
+    it("does not overflow the call stack when rendering a table with maxHeight", () => {
+        const {renderer} = buildTable();
+        const passes = trackRenderPasses(renderer);
+
+        expect(() => renderer.renderRows()).not.toThrow();
+        expect(passes.maxDepth).toBeLessThan(RUNAWAY_RENDER_DEPTH);
+    });
+
+    it("sizes the holder to fill the table up to maxHeight", () => {
+        const {renderer, element, holder} = buildTable();
+
+        renderer.renderRows();
+
+        expect(element.clientHeight).toBe(MAX_HEIGHT);
+        expect(holder.clientHeight).toBe(MAX_HEIGHT - HEADER_HEIGHT);
+    });
+});
